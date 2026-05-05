@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────── ENUMS ───────────────────────
+
+enum Role {
+  USER
+  PROVIDER
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  FROZEN
+  BLOCKED
+  DELETED
+}
+
+enum ServiceType {
+  ORGANIZED
+  UNORGANIZED
+  BOTH
+  INDEPENDENT
+}
+
+enum ProviderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  CHATTING
+  REJECTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  AWAITING_CONFIRMATION
+  DISPUTED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+}
+
+enum ReviewRole {
+  USER
+  PROVIDER
+}
+
+enum OrgMemberStatus {
+  ACTIVE
+  PENDING
+  REJECTED
+}
+
+enum OrgApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrgJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProviderAvailabilityStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum NotificationType {
+  ANNOUNCEMENT
+  NEWS
+  WARNING
+  APPLICATION_RESPONSE
+  SYSTEM
+  DIRECT_MESSAGE
+}
+
+// ─────────────────────── CORE MODELS ───────────────────────
+
+model User {
+  id              String           @id @default(uuid())
+  firstName       String?
+  lastName        String?
+  name            String
+  username        String?          @unique
+  walletId        String?          @unique @default(cuid())
+  email           String           @unique
+  password        String
+  role            Role             @default(USER)
+  avatar          String?
+  status          UserStatus       @default(ACTIVE)
+  reliability     Float            @default(100.0)
+  isOnline        Boolean          @default(false)
+  lastSeenAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  providerProfile ProviderProfile?
+  ordersAsUser    Order[]          @relation("UserOrders")
+  messages        Message[]        @relation("UserMessages")
+  reviewsGiven    Review[]         @relation("Reviewer")
+  reviewsReceived Review[]         @relation("Reviewee")
+  notifications   Notification[]
+  notificationsSent Notification[] @relation("NotificationSender")
+  adminChatsAsAdmin  AdminChat[]        @relation("AdminChatsAsAdmin")
+  adminChatsAsTarget AdminChat[]        @relation("AdminChatsAsTarget")
+  adminChatMessages  AdminChatMessage[] @relation("AdminChatMessages")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  icon        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  skills Skill[]
+}
+
+model Skill {
+  id          String   @id @default(uuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  providerSkills     ProviderSkill[]
+  orders             Order[]
+  reviews            Review[]
+  organizationSkills OrganizationSkill[]
+}
+
+model ProviderProfile {
+  id            String         @id @default(uuid())
+  userId        String         @unique
+  user          User           @relation(fields: [userId], references: [id])
+  bio           String?
+  serviceType   ServiceType    @default(INDEPENDENT)
+  status        ProviderStatus @default(PENDING)
+  availabilityStatus String    @default("AVAILABLE")
+  rejectionNote String?
+  createdAt     DateTime       @default(now())
+
+  providerSkills        ProviderSkill[]
+  districts             ProviderDistrict[]
+  portfolio             PortfolioImage[]
+  schedules             ProviderSchedule[]
+  orders                Order[]                   @relation("ProviderOrders")
+  adminOfOrganizations  Organization[]            @relation("OrgAdmin")
+  memberOfOrganizations OrganizationMember[]
+  orgApplications       OrganizationApplication[]
+  orgJoinRequests       OrganizationJoinRequest[]
+}
+
+model ProviderSkill {
+  id              String          @id @default(uuid())
+  providerId      String
+  provider        ProviderProfile @relation(fields: [providerId], references: [id])
+  skillId         String
+  skill           Skill           @relation(fields: [skillId], references: [id])
+  priceFrom       Int?
+  priceTo         Int?
+  priceNote       String?
+  experienceYears Float           @default(0)
+  isActive        Boolean         @default(true)
+}
+
+model ProviderDistrict {
+  id           String          @id @default(uuid())
+  providerId   String
+  provider     ProviderProfile @relation(fields: [providerId], references: [id])
+  districtName String
+}
+
+model PortfolioImage {
+  id         String          @id @default(uuid())
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id])
+  imageUrl   String
+  caption    String?
+  createdAt  DateTime        @default(now())
+}
+
+model ProviderSchedule {
+  id         String          @id @default(uuid())
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id])
+  dayOfWeek  Int
+  openTime   String
+  closeTime  String
+  isActive   Boolean         @default(true)
+}
+
+// ─────────────────────── ORGANIZATION ───────────────────────
+
+model Organization {
+  id              String          @id @default(uuid())
+  name            String
+  description     String?
+  logo            String?
+  isActive        Boolean         @default(true)
+  adminProviderId String
+  adminProvider   ProviderProfile @relation("OrgAdmin", fields: [adminProviderId], references: [id])
+  rating          Float           @default(0)
+  reliability     Float           @default(100)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  members      OrganizationMember[]
+  skills       OrganizationSkill[]
+  orders       Order[]                   @relation("OrganizationOrders")
+  joinRequests OrganizationJoinRequest[]
+}
+
+model OrganizationMember {
+  id             String          @id @default(uuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  providerId     String
+  provider       ProviderProfile @relation(fields: [providerId], references: [id])
+  status         OrgMemberStatus @default(ACTIVE)
+  joinedAt       DateTime        @default(now())
+
+  @@unique([organizationId, providerId])
+}
+
+model OrganizationSkill {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  skillId        String
+  skill          Skill        @relation(fields: [skillId], references: [id])
+
+  @@unique([organizationId, skillId])
+}
+
+model OrganizationApplication {
+  id            String               @id @default(uuid())
+  providerId    String
+  provider      ProviderProfile      @relation(fields: [providerId], references: [id])
+  name          String
+  description   String?
+  status        OrgApplicationStatus @default(PENDING)
+  rejectionNote String?
+  createdAt     DateTime             @default(now())
+}
+
+model OrganizationJoinRequest {
+  id             String               @id @default(uuid())
+  providerId     String
+  provider       ProviderProfile      @relation(fields: [providerId], references: [id])
+  organizationId String
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  message        String?
+  status         OrgJoinRequestStatus @default(PENDING)
+  rejectionNote  String?
+  createdAt      DateTime             @default(now())
+
+  @@unique([organizationId, providerId])
+}
+
+// ─────────────────────── ORDER & CHAT ───────────────────────
+
+model Order {
+  id              String          @id @default(uuid())
+  userId          String
+  user            User            @relation("UserOrders", fields: [userId], references: [id])
+  providerId      String
+  provider        ProviderProfile @relation("ProviderOrders", fields: [providerId], references: [id])
+  organizationId  String?
+  organization    Organization?   @relation("OrganizationOrders", fields: [organizationId], references: [id])
+  skillId         String
+  skill           Skill           @relation(fields: [skillId], references: [id])
+  status          OrderStatus     @default(PENDING)
+  description     String
+  address         String
+  preferredTime   String?
+  images          String[]
+  cancelReason    String?
+  rejectionReason String?
+  completedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  messages Message[]
+  reviews  Review[]  @relation("OrderReview")
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id])
+  senderId  String
+  sender    User        @relation("UserMessages", fields: [senderId], references: [id])
+  content   String
+  type      MessageType @default(TEXT)
+  isRead    Boolean     @default(false)
+  createdAt DateTime    @default(now())
+}
+
+model Review {
+  id         String     @id @default(uuid())
+  orderId    String
+  order      Order      @relation("OrderReview", fields: [orderId], references: [id])
+  reviewerId String
+  reviewer   User       @relation("Reviewer", fields: [reviewerId], references: [id])
+  revieweeId String
+  reviewee   User       @relation("Reviewee", fields: [revieweeId], references: [id])
+  skillId    String
+  skill      Skill      @relation(fields: [skillId], references: [id])
+  rating     Int
+  comment    String?
+  fromRole   ReviewRole
+  isPositive Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+
+  @@unique([orderId, reviewerId])
+}
+
+// ─────────────────────── NOTIFICATION ───────────────────────
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType @default(SYSTEM)
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  senderId  String?
+  sender    User?            @relation("NotificationSender", fields: [senderId], references: [id])
+  createdAt DateTime         @default(now())
+}
+
+// ─────────────────────── ADMIN CHAT ───────────────────────
+
+model AdminChat {
+  id           String             @id @default(uuid())
+  adminId      String
+  admin        User               @relation("AdminChatsAsAdmin", fields: [adminId], references: [id])
+  targetUserId String
+  targetUser   User               @relation("AdminChatsAsTarget", fields: [targetUserId], references: [id])
+  messages     AdminChatMessage[]
+  createdAt    DateTime           @default(now())
+}
+
+model AdminChatMessage {
+  id        String    @id @default(uuid())
+  chatId    String
+  chat      AdminChat @relation(fields: [chatId], references: [id])
+  senderId  String
+  sender    User      @relation("AdminChatMessages", fields: [senderId], references: [id])
+  content   String
+  createdAt DateTime  @default(now())
+}
