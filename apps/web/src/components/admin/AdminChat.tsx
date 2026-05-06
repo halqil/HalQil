@@ -237,6 +237,9 @@ export default function AdminChat() {
               chats.map((chat) => {
                 const lastMsg = chat.messages?.[0];
                 const isActive = activeChat?.id === chat.id;
+                // Bizda 'isRead' maydoni bo'lmagani uchun oxirgi xabar adminnikimas bo'lsa uni bold qilamiz
+                const isUnreadByAdmin = lastMsg && lastMsg.senderId !== user?.id && !isActive;
+                
                 return (
                   <button
                     key={chat.id}
@@ -275,10 +278,13 @@ export default function AdminChat() {
                         {chat.targetUser?.username && ` · @${chat.targetUser.username}`}
                       </div>
                       {lastMsg && (
-                        <div className="text-xs text-gray-400 truncate mt-0.5">{lastMsg.content}</div>
+                        <div className={`text-xs truncate mt-0.5 ${isUnreadByAdmin ? 'font-bold text-gray-900' : 'text-gray-400'}`}>
+                          {lastMsg.senderId === user?.id ? "Siz: " : ""}{lastMsg.content}
+                        </div>
                       )}
                     </div>
-                    <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+                    {isUnreadByAdmin && <div className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0" />}
+                    <ChevronRight size={14} className="text-gray-300 flex-shrink-0 ml-1" />
                   </button>
                 );
               })
