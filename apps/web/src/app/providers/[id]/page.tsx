@@ -22,8 +22,16 @@ export default function ProviderDetail() {
   const [selectedSkillId, setSelectedSkillId] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
-  const [preferredTime, setPreferredTime] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
   const [orderLoading, setOrderLoading] = useState(false);
+
+  // Minimal sana: hozirgi vaqt, timezone bilan
+  const getMinDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+  };
+  const [minDateTime, setMinDateTime] = useState(getMinDateTime);
 
   useEffect(() => {
     if (!id) return;
@@ -44,6 +52,10 @@ export default function ProviderDetail() {
       }
     };
     fetchDetail();
+
+    // Har daqiqada minDateTime ni yangilash
+    const interval = setInterval(() => setMinDateTime(getMinDateTime()), 60_000);
+    return () => clearInterval(interval);
   }, [id, router]);
 
   const handleOrder = async (e: React.FormEvent) => {
@@ -61,7 +73,7 @@ export default function ProviderDetail() {
         skill_id: selectedSkillId,
         description,
         address,
-        preferred_time: preferredTime
+        preferred_date: preferredDate
       });
       if (res.data.success) {
         toast.success("Buyurtma muvaffaqiyatli yuborildi!");
@@ -129,12 +141,25 @@ export default function ProviderDetail() {
               </div>
             </div>
             
-            <button 
-              onClick={() => setShowOrderModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg w-full md:w-auto"
-            >
-              Buyurtma berish
-            </button>
+            <div className="flex flex-col items-start md:items-end gap-1">
+              <button 
+                onClick={() => provider.availabilityStatus === 'AVAILABLE' && setShowOrderModal(true)}
+                disabled={provider.availabilityStatus !== 'AVAILABLE'}
+                title={provider.availabilityStatus === 'BUSY' ? 'Provayder hozir band' : ''}
+                className={`px-8 py-3 rounded-xl font-bold transition-all shadow-md w-full md:w-auto ${
+                  provider.availabilityStatus === 'AVAILABLE'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg cursor-pointer'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                }`}
+              >
+                Buyurtma berish
+              </button>
+              {provider.availabilityStatus === 'BUSY' && (
+                <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
+                  🟡 Provayder hozir band
+                </span>
+              )}
+            </div>
           </div>
 
           <p className="text-gray-600 leading-relaxed">{provider.bio || "O'zi haqida ma'lumot kiritilmagan."}</p>
@@ -281,10 +306,10 @@ export default function ProviderDetail() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Qulay vaqt (ixtiyoriy)</label>
                 <input 
-                  type="text" 
-                  value={preferredTime}
-                  onChange={e => setPreferredTime(e.target.value)}
-                  placeholder="Masalan: Ertaga soat 14:00"
+                  type="datetime-local"
+                  min={minDateTime}
+                  value={preferredDate}
+                  onChange={(e) => setPreferredDate(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>

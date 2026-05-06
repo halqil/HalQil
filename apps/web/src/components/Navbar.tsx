@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAuthStore } from "../lib/store";
 import { useRouter } from "next/navigation";
 import { LogOut, User, LayoutDashboard, Search, Package, Briefcase, Bell } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "../lib/api";
 
 export default function Navbar() {
@@ -17,15 +17,37 @@ export default function Navbar() {
   };
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const socketRef = useRef<any>(null);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      api.get("/notifications").then(res => {
-        if (res.data.success) {
-          setUnreadCount(res.data.unreadCount || 0);
-        }
-      }).catch(console.error);
+    if (!isAuthenticated) return;
+
+    // Dastlabki count ni API dan olamiz
+    api.get("/notifications").then(res => {
+      if (res.data.success) {
+        setUnreadCount(res.data.unreadCount || 0);
+      }
+    }).catch(console.error);
+
+    // Socket.IO orqali real-time notification badge
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      import("socket.io-client").then(({ io }) => {
+        const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000", {
+          auth: { token }
+        });
+        socketRef.current = socket;
+
+        socket.on("new_notification", () => {
+          setUnreadCount(prev => prev + 1);
+        });
+      });
     }
+
+    return () => {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
   }, [isAuthenticated]);
 
   return (
@@ -42,7 +64,11 @@ export default function Navbar() {
         
         {isAuthenticated ? (
           <div className="flex items-center gap-4">
-            <Link href="/notifications" className="relative p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all">
+            <Link 
+              href="/notifications" 
+              className="relative p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
+              onClick={() => setUnreadCount(0)}
+            >
               <Bell size={20} />
               {unreadCount > 0 && (
                 <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">

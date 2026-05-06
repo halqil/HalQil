@@ -32,6 +32,7 @@ import userRoutes from './routes/user.routes';
 import catalogRoutes from './routes/catalog.routes';
 import organizationRoutes from './routes/organization.routes';
 import notificationRoutes from './routes/notification.routes';
+import adminChatRoutes from './routes/adminChat.routes';
 
 // Routes
 app.use('/auth', authRoutes);
@@ -44,6 +45,7 @@ app.use('/user', userRoutes);
 app.use('/catalog', catalogRoutes);
 app.use('/organizations', organizationRoutes);
 app.use('/notifications', notificationRoutes);
+app.use('/my/admin-chat', adminChatRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Mahalliy Xizmat Marketplace API is running...');
@@ -56,6 +58,10 @@ app.use(errorHandler);
 // Setup Socket.IO
 import { prisma } from './lib/prisma';
 import { verifyAccessToken } from './lib/jwt';
+import { setIo } from './lib/socket';
+
+// io ni global registry ga register qilamiz (controllers dan ishlatish uchun)
+setIo(io);
 
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
@@ -79,6 +85,8 @@ io.on('connection', async (socket) => {
         where: { id: user.userId },
         data: { isOnline: true, lastSeenAt: new Date() }
       });
+      // Har bir user o'z personal room iga kiradi — notification uchun
+      socket.join(`user_${user.userId}`);
     } catch (e) {}
   }
 
@@ -127,6 +135,7 @@ io.on('connection', async (socket) => {
 });
 
 // Setup simple cron for Schedule checking (every 5 minutes)
+// OFFLINE ni cron orqali o'rnatmaymiz — bu faqat socket disconnect orqali boshqariladi
 setInterval(async () => {
   try {
     const now = new Date();
@@ -144,27 +153,87 @@ setInterval(async () => {
 
     const activeProviderIds = activeSchedules.map(s => s.providerId);
 
-    // Update those who should be AVAILABLE
+    // Faqat: active schedule bo'lgan provayderlarni AVAILABLE ga o'tkazamiz
+    // (agar ular hozirda BUSY bo'lmasa)
     if (activeProviderIds.length > 0) {
       await prisma.providerProfile.updateMany({
         where: { id: { in: activeProviderIds }, availabilityStatus: 'OFFLINE' },
         data: { availabilityStatus: 'AVAILABLE' }
       });
     }
-
-    // Update those who should be OFFLINE (if they don't have an active schedule right now)
-    await prisma.providerProfile.updateMany({
-      where: {
-        id: { notIn: activeProviderIds },
-        availabilityStatus: 'AVAILABLE'
-      },
-      data: { availabilityStatus: 'OFFLINE' }
-    });
+    // OFFLINE ni bu yerda o'rnatmaymiz — faqat isOnline socket orqali boshqariladi
 
   } catch (error) {
     console.error('Schedule check error', error);
   }
 }, 5 * 60 * 1000);
+
+// ─── Auto-complete: 24 soat o'tgan AWAITING_CONFIRMATION ─────────────────────
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const pending = await prisma.order.findMany({
+      where: { status: 'AWAITING_CONFIRMATION', awaitingConfirmAt: { lte: cutoff } }
+    });
+
+    for (const order of pending) {
+      const isSuccess = order.finishType === 'SUCCESSFUL';
+      const newStatus = isSuccess ? 'COMPLETED' : 'FAILED';
+
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: newStatus, autoCompleted: true }
+      });
+
+      const provider = await prisma.providerProfile.findUnique({ where: { id: order.providerId } });
+
+      if (isSuccess) {
+        if (provider) {
+          await prisma.providerProfile.update({
+            where: { id: order.providerId },
+            data: { successfulOrders: provider.successfulOrders + 1 }
+          });
+          const total = provider.successfulOrders + 1 + provider.failedOrders;
+          const reliability = total > 0 ? Math.round(((provider.successfulOrders + 1) / total) * 100) : 100;
+          await prisma.user.update({ where: { id: provider.userId }, data: { reliability } });
+          await prisma.notification.create({
+            data: {
+              userId: provider.userId,
+              title: 'Xizmat avtomatik tasdiqlandi',
+              message: 'Mijoz 24 soat ichida javob bermadi. Xizmat avtomatik COMPLETED qilindi.',
+              link: `/orders/${order.id}`
+            }
+          });
+        }
+        await prisma.notification.create({
+          data: {
+            userId: order.userId,
+            title: 'Buyurtma avtomatik yakunlandi',
+            message: 'Siz 24 soat ichida tasdiqlamagansiz. Buyurtma avtomatik yakunlandi.',
+            link: `/orders/${order.id}`
+          }
+        });
+      } else {
+        // UNSUCCESSFUL auto-complete: faqat MY_FAULT bo'lsa provider zarari
+        if (order.unsuccessCategory === 'MY_FAULT' && provider) {
+          const newFailed = provider.failedOrders + 1;
+          await prisma.providerProfile.update({ where: { id: order.providerId }, data: { failedOrders: newFailed } });
+          const total = provider.successfulOrders + newFailed;
+          const reliability = total > 0 ? Math.round((provider.successfulOrders / total) * 100) : 100;
+          await prisma.user.update({ where: { id: provider.userId }, data: { reliability } });
+        }
+        if (provider) {
+          await prisma.notification.create({
+            data: { userId: provider.userId, title: 'Buyurtma avtomatik FAILED qilindi', message: 'Mijoz 24 soat javob bermadi.', link: `/orders/${order.id}` }
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Auto-complete cron error:', error);
+  }
+}, 5 * 60 * 1000);
+
 
 httpServer.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);

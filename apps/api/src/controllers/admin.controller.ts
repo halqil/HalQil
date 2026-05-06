@@ -220,46 +220,98 @@ export const toggleSkill = async (req: Request, res: Response, next: NextFunctio
 // ------------------------ APPLICATIONS ------------------------
 
 /**
- * @desc    Mutaxassislik arizalarini olish
+ * @desc    Provayder arizalarini olish
  * @route   GET /api/admin/applications
  * @access  SUPER_ADMIN
  */
 export const getApplications = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const applications = await prisma.providerProfile.findMany({
-      where: { status: 'PENDING' },
-      include: {
-        user: { select: { id: true, name: true, email: true, avatar: true } },
-        providerSkills: { include: { skill: true } },
-        districts: true
-      },
-      orderBy: { createdAt: 'asc' }
-    });
-    res.json({ success: true, data: applications });
+    const {
+      status = 'PENDING',
+      search,
+      page = '1',
+      limit = '20'
+    } = req.query as Record<string, string>;
+
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const userWhere: any = {};
+    if (search) {
+      userWhere.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const where: any = { status };
+    if (search) where.user = userWhere;
+
+    const [applications, total] = await Promise.all([
+      prisma.providerApplication.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true, firstName: true, lastName: true, username: true,
+              name: true, email: true, avatar: true, walletId: true,
+              isOnline: true, createdAt: true, reliability: true
+            }
+          },
+          _count: { select: { skills: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum
+      }),
+      prisma.providerApplication.count({ where })
+    ]);
+
+    const data = applications.map(a => ({
+      id: a.id,
+      status: a.status,
+      createdAt: a.createdAt,
+      user: a.user,
+      skillsCount: a._count.skills,
+      districts: a.workDistricts
+    }));
+
+    res.json({ success: true, data: { applications: data, total, page: pageNum, totalPages: Math.ceil(total / limitNum) } });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Ariza tafsilotlarini olish
+ * @desc    Bitta ariza batafsil
  * @route   GET /api/admin/applications/:id
  * @access  SUPER_ADMIN
  */
 export const getApplicationDetail = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const application = await prisma.providerProfile.findUnique({
+    const application = await prisma.providerApplication.findUnique({
       where: { id },
       include: {
-        user: { select: { id: true, name: true, email: true, avatar: true } },
-        providerSkills: { include: { skill: true } },
-        districts: true,
-        portfolio: true
+        user: {
+          select: {
+            id: true, firstName: true, lastName: true, username: true,
+            name: true, email: true, avatar: true, walletId: true,
+            isOnline: true, createdAt: true, reliability: true,
+            successfulOrders: true, cancelledOrders: true
+          }
+        },
+        skills: {
+          include: {
+            skill: { include: { category: { select: { id: true, name: true } } } }
+          }
+        }
       }
     });
 
-    if (!application) return res.status(404).json({ success: false, error: 'Ariza topilmadi', code: 'NOT_FOUND' });
+    if (!application) return res.status(404).json({ success: false, error: 'Ariza topilmadi' });
 
     res.json({ success: true, data: application });
   } catch (error) {
@@ -269,28 +321,95 @@ export const getApplicationDetail = async (req: Request, res: Response, next: Ne
 
 /**
  * @desc    Arizani tasdiqlash
- * @route   POST /api/admin/applications/:id/approve
+ * @route   PATCH /api/admin/applications/:id/approve
  * @access  SUPER_ADMIN
  */
 export const approveApplication = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const { message } = req.body;
+    const adminId = req.user?.userId as string;
 
-    const application = await prisma.providerProfile.findUnique({ where: { id }, include: { user: true } });
-    if (!application) return res.status(404).json({ success: false, error: 'Ariza topilmadi', code: 'NOT_FOUND' });
+    if (!message?.trim()) return res.status(400).json({ success: false, error: 'Xabar majburiy' });
 
-    if (application.status !== 'PENDING') return res.status(400).json({ success: false, error: 'Ariza allaqachon ko\'rib chiqilgan', code: 'ALREADY_PROCESSED' });
+    const application = await prisma.providerApplication.findUnique({
+      where: { id },
+      include: { skills: true, user: true }
+    });
+    if (!application) return res.status(404).json({ success: false, error: 'Ariza topilmadi' });
+    if (application.status !== 'PENDING') return res.status(400).json({ success: false, error: 'Ariza allaqachon ko\'rib chiqilgan' });
 
     await prisma.$transaction(async (tx) => {
-      await tx.providerProfile.update({
-        where: { id },
-        data: { status: 'APPROVED' }
+      // 1. Ariza statusini yangilash
+      await tx.providerApplication.update({ where: { id }, data: { status: 'APPROVED' } });
+
+      // 2. User rolini PROVIDER qilish
+      await tx.user.update({ where: { id: application.userId }, data: { role: 'PROVIDER' } });
+
+      // 3. ProviderProfile yaratish
+      const profile = await tx.providerProfile.upsert({
+        where: { userId: application.userId },
+        update: { status: 'APPROVED', applicationId: id, serviceType: 'INDEPENDENT' },
+        create: {
+          userId: application.userId,
+          serviceType: 'INDEPENDENT',
+          status: 'APPROVED',
+          applicationId: id,
+          bio: null
+        }
       });
 
-      await tx.user.update({
-        where: { id: application.userId },
-        data: { role: 'PROVIDER' }
+      // 4. ProviderSkill lar yaratish
+      if (application.skills.length > 0) {
+        await tx.providerSkill.deleteMany({ where: { providerId: profile.id } });
+        await tx.providerSkill.createMany({
+          data: application.skills.map(s => ({
+            providerId: profile.id,
+            skillId: s.skillId,
+            serviceType: s.serviceType as any,
+            experienceYears: s.experienceYears,
+            priceFrom: s.priceFrom,
+            priceTo: s.priceTo,
+            isActive: true
+          }))
+        });
+      }
+
+      // 5. ProviderDistrict lar yaratish
+      if (application.workDistricts.length > 0) {
+        await tx.providerDistrict.deleteMany({ where: { providerId: profile.id } });
+        await tx.providerDistrict.createMany({
+          data: application.workDistricts.map(d => ({
+            providerId: profile.id,
+            districtName: d
+          }))
+        });
+      }
+
+      // 6. User ga notification
+      await tx.notification.create({
+        data: {
+          userId: application.userId,
+          title: 'Arizangiz tasdiqlandi! 🎉',
+          message: message.trim(),
+          type: 'APPLICATION_RESPONSE',
+          link: '/provider/dashboard',
+          isGlobal: false
+        }
       });
+    });
+
+    // 7. Admin chat yaratish (transaction tashqarisida)
+    let chat = await prisma.adminChat.findFirst({
+      where: { adminId, targetUserId: application.userId }
+    });
+    if (!chat) {
+      chat = await prisma.adminChat.create({
+        data: { adminId, targetUserId: application.userId }
+      });
+    }
+    await prisma.adminChatMessage.create({
+      data: { chatId: chat.id, senderId: adminId, content: message.trim() }
     });
 
     res.json({ success: true, data: { message: 'Ariza tasdiqlandi' } });
@@ -301,24 +420,37 @@ export const approveApplication = async (req: Request, res: Response, next: Next
 
 /**
  * @desc    Arizani rad etish
- * @route   POST /api/admin/applications/:id/reject
+ * @route   PATCH /api/admin/applications/:id/reject
  * @access  SUPER_ADMIN
  */
 export const rejectApplication = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { rejection_note } = req.body;
+    const { reason } = req.body;
 
-    if (!rejection_note) return res.status(400).json({ success: false, error: 'Rad etish sababini kiritish majburiy', code: 'MISSING_REASON' });
+    if (!reason?.trim()) return res.status(400).json({ success: false, error: 'Rad etish sababini kiritish majburiy' });
 
-    const application = await prisma.providerProfile.findUnique({ where: { id } });
-    if (!application) return res.status(404).json({ success: false, error: 'Ariza topilmadi', code: 'NOT_FOUND' });
-
-    if (application.status !== 'PENDING') return res.status(400).json({ success: false, error: 'Ariza allaqachon ko\'rib chiqilgan', code: 'ALREADY_PROCESSED' });
-
-    await prisma.providerProfile.update({
+    const application = await prisma.providerApplication.findUnique({
       where: { id },
-      data: { status: 'REJECTED', rejectionNote: rejection_note }
+      include: { user: true }
+    });
+    if (!application) return res.status(404).json({ success: false, error: 'Ariza topilmadi' });
+    if (application.status !== 'PENDING') return res.status(400).json({ success: false, error: 'Ariza allaqachon ko\'rib chiqilgan' });
+
+    await prisma.providerApplication.update({
+      where: { id },
+      data: { status: 'REJECTED', rejectionNote: reason.trim() }
+    });
+
+    await prisma.notification.create({
+      data: {
+        userId: application.userId,
+        title: 'Arizangiz rad etildi',
+        message: reason.trim(),
+        type: 'APPLICATION_RESPONSE',
+        link: '/profile',
+        isGlobal: false
+      }
     });
 
     res.json({ success: true, data: { message: 'Ariza rad etildi' } });
@@ -326,6 +458,55 @@ export const rejectApplication = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
+
+/**
+ * @desc    Ariza bo'yicha admin chat ochish
+ * @route   PATCH /api/admin/applications/:id/open-chat
+ * @access  SUPER_ADMIN
+ */
+export const openApplicationChat = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const adminId = req.user?.userId as string;
+
+    if (!message?.trim()) return res.status(400).json({ success: false, error: 'Xabar majburiy' });
+
+    const application = await prisma.providerApplication.findUnique({ where: { id } });
+    if (!application) return res.status(404).json({ success: false, error: 'Ariza topilmadi' });
+
+    let chat = await prisma.adminChat.findFirst({
+      where: { adminId, targetUserId: application.userId }
+    });
+    if (!chat) {
+      chat = await prisma.adminChat.create({
+        data: { adminId, targetUserId: application.userId }
+      });
+    }
+
+    await prisma.adminChatMessage.create({
+      data: { chatId: chat.id, senderId: adminId, content: message.trim() }
+    });
+
+    await prisma.notification.create({
+      data: {
+        userId: application.userId,
+        type: 'DIRECT_MESSAGE' as any,
+        title: 'Admin sizga savol bermoqchi',
+        message: message.trim().slice(0, 80),
+        link: `/admin-chat/${chat.id}`,
+        senderId: adminId,
+        isGlobal: false
+      }
+    });
+
+    res.json({ success: true, data: { chatId: chat.id } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 
 // ─── ORGANIZATION APPLICATIONS (by SUPER_ADMIN) ──────────────────────────────
 
@@ -493,48 +674,83 @@ export const toggleOrganization = async (req: Request, res: Response, next: Next
 // ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
 
 /**
- * @desc    Barcha foydalanuvchilarni olish
+ * @desc    Barcha foydalanuvchilarni olish (pagination, sort, search)
  * @route   GET /api/admin/users
  * @access  SUPER_ADMIN
  */
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { role, status, search } = req.query;
+    const {
+      role,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = '1',
+      limit = '20'
+    } = req.query as Record<string, string>;
 
-    let filter: any = { status: { not: 'DELETED' } };
-    if (role) filter.role = role;
-    if (status) filter.status = status;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const allowedSortFields = ['createdAt', 'username', 'email', 'walletId'];
+    const orderField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const orderDir = sortOrder === 'asc' ? 'asc' : 'desc';
+
+    const where: any = { status: { not: 'DELETED' } };
+
+    if (role) where.role = role;
+
     if (search) {
-      filter.OR = [
-        { username: { contains: search as string, mode: 'insensitive' } },
-        { email: { contains: search as string, mode: 'insensitive' } },
-        { name: { contains: search as string, mode: 'insensitive' } },
+      where.OR = [
+        { walletId: { contains: search } },
+        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    const users = await prisma.user.findMany({
-      where: filter,
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        name: true,
-        username: true,
-        email: true,
-        role: true,
-        status: true,
-        walletId: true,
-        isOnline: true,
-        lastSeenAt: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' }
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          name: true,
+          username: true,
+          email: true,
+          role: true,
+          status: true,
+          walletId: true,
+          reliability: true,
+          successfulOrders: true,
+          cancelledOrders: true,
+          isOnline: true,
+          lastSeenAt: true,
+          createdAt: true,
+        },
+        orderBy: { [orderField]: orderDir },
+        skip,
+        take: limitNum,
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        total,
+        page: pageNum,
+        totalPages: Math.ceil(total / limitNum),
+      }
     });
-    res.json({ success: true, data: users });
   } catch (error) {
     next(error);
   }
 };
+
 
 /**
  * @desc    Foydalanuvchi tafsilotlarini olish
@@ -608,8 +824,8 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
       return res.status(400).json({ success: false, error: 'O\'zingizni o\'chira olmaysiz' });
     }
 
-    const updated = await prisma.user.update({ where: { id }, data: { status: 'DELETED' } });
-    res.json({ success: true, data: { message: 'Foydalanuvchi o\'chirildi', user: updated } });
+    await prisma.user.delete({ where: { id } });
+    res.json({ success: true, data: { message: 'Foydalanuvchi to\'liq o\'chirildi' } });
   } catch (error) {
     next(error);
   }
@@ -628,8 +844,9 @@ export const getAdminChats = async (req: Request, res: Response, next: NextFunct
     const chats = await prisma.adminChat.findMany({
       where: { adminId },
       include: {
-        targetUser: { select: { id: true, name: true, avatar: true, email: true, username: true } },
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 } // Last message
+        targetUser: { select: { id: true, name: true, avatar: true, email: true, username: true, walletId: true, role: true, isOnline: true } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        _count: { select: { messages: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -639,16 +856,25 @@ export const getAdminChats = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+
 /**
- * @desc    Yangi admin chat yaratish yoki mavjudini olish
+ * @desc    Yangi admin chat yaratish (yoki mavjudini olish) + birinchi xabar
  * @route   POST /api/admin/chats
  * @access  SUPER_ADMIN
  */
 export const createAdminChat = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const adminId = req.user?.userId as string;
-    const { targetUserId } = req.body;
+    const { targetUserId, initialMessage } = req.body;
 
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: 'targetUserId majburiy' });
+    }
+    if (!initialMessage?.trim()) {
+      return res.status(400).json({ success: false, error: 'initialMessage majburiy' });
+    }
+
+    // Mavjud chatni qidirish yoki yangi yaratish
     let chat = await prisma.adminChat.findFirst({
       where: { adminId, targetUserId }
     });
@@ -659,11 +885,31 @@ export const createAdminChat = async (req: Request, res: Response, next: NextFun
       });
     }
 
+    // Birinchi xabarni saqlash
+    await prisma.adminChatMessage.create({
+      data: { chatId: chat.id, senderId: adminId, content: initialMessage.trim() }
+    });
+
+    // Target user ga notification
+    const preview = initialMessage.trim().slice(0, 50);
+    await prisma.notification.create({
+      data: {
+        userId: targetUserId,
+        type: 'DIRECT_MESSAGE' as any,
+        title: 'Admin sizga xabar yubordi',
+        message: preview,
+        link: `/admin-chat`,
+        senderId: adminId,
+        isGlobal: false
+      }
+    });
+
     res.json({ success: true, data: chat });
   } catch (error) {
     next(error);
   }
 };
+
 
 /**
  * @desc    Admin chat xabarlarini olish
@@ -675,6 +921,9 @@ export const getAdminChatMessages = async (req: Request, res: Response, next: Ne
     const { id } = req.params;
     const messages = await prisma.adminChatMessage.findMany({
       where: { chatId: id },
+      include: {
+        sender: { select: { id: true, name: true, avatar: true, role: true } }
+      },
       orderBy: { createdAt: 'asc' }
     });
     res.json({ success: true, data: messages });
@@ -682,6 +931,7 @@ export const getAdminChatMessages = async (req: Request, res: Response, next: Ne
     next(error);
   }
 };
+
 
 /**
  * @desc    Admin chatga xabar yuborish
@@ -694,15 +944,37 @@ export const sendAdminChatMessage = async (req: Request, res: Response, next: Ne
     const { content } = req.body;
     const senderId = req.user?.userId as string;
 
+    if (!content?.trim()) {
+      return res.status(400).json({ success: false, error: 'content majburiy' });
+    }
+
     const message = await prisma.adminChatMessage.create({
-      data: { chatId: id, senderId, content }
+      data: { chatId: id, senderId, content: content.trim() },
+      include: { sender: { select: { id: true, name: true, avatar: true, role: true } } }
     });
+
+    // Target user ga notification
+    const chat = await prisma.adminChat.findUnique({ where: { id } });
+    if (chat) {
+      await prisma.notification.create({
+        data: {
+          userId: chat.targetUserId,
+          type: 'DIRECT_MESSAGE' as any,
+          title: 'Admin yangi xabar yubordi',
+          message: content.trim().slice(0, 50),
+          link: `/admin-chat`,
+          senderId,
+          isGlobal: false
+        }
+      });
+    }
 
     res.json({ success: true, data: message });
   } catch (error) {
     next(error);
   }
 };
+
 
 // ─── ADMIN NOTIFICATIONS ──────────────────────────────────────────────────────
 
@@ -716,27 +988,53 @@ export const broadcastNotification = async (req: Request, res: Response, next: N
     const { type, title, message, targetRole } = req.body;
     const senderId = req.user?.userId;
 
-    let whereClause = {};
-    if (targetRole === 'USER') whereClause = { role: 'USER' };
-    else if (targetRole === 'PROVIDER') whereClause = { role: 'PROVIDER' };
+    if (!title || !message) {
+      return res.status(400).json({ success: false, error: 'title va message majburiy' });
+    }
 
-    const users = await prisma.user.findMany({ where: whereClause, select: { id: true } });
-    
-    const notifications = users.map(u => ({
-      userId: u.id,
-      type: type || 'SYSTEM',
-      title,
-      message,
-      senderId
-    }));
+    if (targetRole && targetRole !== 'ALL') {
+      // Ma'lum rol uchun: faqat shu roldagi userlarga individual yuboriladi
+      const users = await prisma.user.findMany({
+        where: { role: targetRole },
+        select: { id: true }
+      });
 
-    await prisma.notification.createMany({ data: notifications });
+      const notifications = users.map(u => ({
+        userId: u.id,
+        type: (type || 'ANNOUNCEMENT') as any,
+        title,
+        message,
+        senderId,
+        isGlobal: false
+      }));
 
-    res.json({ success: true, data: { message: `${notifications.length} ta foydalanuvchiga yuborildi` } });
+      await prisma.notification.createMany({ data: notifications });
+
+      return res.json({
+        success: true,
+        data: { message: `${notifications.length} ta ${targetRole} ga yuborildi` }
+      });
+    }
+
+    // Barcha userlar uchun: isGlobal = true, userId = null — bitta yozuv
+    // Hozirgi va kelajakdagi barcha userlar ko'radi
+    await prisma.notification.create({
+      data: {
+        userId: null,
+        isGlobal: true,
+        type: (type || 'ANNOUNCEMENT') as any,
+        title,
+        message,
+        senderId
+      }
+    });
+
+    res.json({ success: true, data: { message: 'Barcha foydalanuvchilarga global notification yuborildi' } });
   } catch (error) {
     next(error);
   }
 };
+
 
 /**
  * @desc    Bitta foydalanuvchiga notification yuborish
@@ -748,8 +1046,19 @@ export const sendNotificationToUser = async (req: Request, res: Response, next: 
     const { userId, type, title, message } = req.body;
     const senderId = req.user?.userId;
 
+    if (!userId || !title || !message) {
+      return res.status(400).json({ success: false, error: 'userId, title va message majburiy' });
+    }
+
     const notification = await prisma.notification.create({
-      data: { userId, type: type || 'SYSTEM', title, message, senderId }
+      data: {
+        userId,
+        type: (type || 'SYSTEM') as any,
+        title,
+        message,
+        senderId,
+        isGlobal: false
+      }
     });
 
     res.json({ success: true, data: notification });
@@ -757,4 +1066,5 @@ export const sendNotificationToUser = async (req: Request, res: Response, next: 
     next(error);
   }
 };
+
 

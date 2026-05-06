@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import api from "../../lib/api";
 import { useAuthStore } from "../../lib/store";
 import { useRouter } from "next/navigation";
-import { Bell, Check, Trash2, ShieldAlert, CheckCircle, Info } from "lucide-react";
+import { Bell, Check, ShieldAlert, CheckCircle, Info, Briefcase, MessageSquare, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function NotificationsPage() {
@@ -35,10 +35,13 @@ export default function NotificationsPage() {
     }
   };
 
-  const markAsRead = async (id: string) => {
+  const markAsRead = async (id: string, link?: string) => {
     try {
       await api.patch(`/notifications/${id}/read`);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      if (link) {
+        router.push(link);
+      }
     } catch (error) {
       console.error(error);
     }
@@ -54,13 +57,15 @@ export default function NotificationsPage() {
     }
   };
 
-  const getIcon = (type: string) => {
+  const getIcon = (type: string, title: string) => {
+    if (title === 'Yangi buyurtma!') return <Briefcase className="text-emerald-500" />;
     switch (type) {
-      case "WARNING": return <ShieldAlert className="text-red-500" />;
+      case "WARNING":              return <ShieldAlert className="text-red-500" />;
       case "APPLICATION_RESPONSE": return <CheckCircle className="text-emerald-500" />;
-      case "SYSTEM": return <Info className="text-blue-500" />;
-      case "ANNOUNCEMENT": return <Bell className="text-indigo-500" />;
-      default: return <Bell className="text-gray-500" />;
+      case "SYSTEM":               return <Info className="text-blue-500" />;
+      case "ANNOUNCEMENT":         return <Bell className="text-indigo-500" />;
+      case "DIRECT_MESSAGE":       return <ShieldCheck className="text-indigo-600" />;
+      default:                     return <Bell className="text-gray-500" />;
     }
   };
 
@@ -90,44 +95,48 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {notifications.map(n => (
-              <div 
-                key={n.id} 
-                className={`p-6 flex items-start gap-4 transition-colors ${!n.isRead ? 'bg-blue-50/30' : 'bg-white hover:bg-gray-50'}`}
-              >
-                <div className={`p-3 rounded-full ${!n.isRead ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                  {getIcon(n.type)}
-                </div>
-                
-                <div className="flex-1">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className={`text-base font-bold ${!n.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
-                      {n.title}
-                    </h3>
-                    <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
-                      {new Date(n.createdAt).toLocaleString("uz-UZ")}
-                    </span>
+            {notifications.map(n => {
+              // "Yangi buyurtma!" → /provider/dashboard, boshqalar → n.link
+              const navLink = n.title === 'Yangi buyurtma!' ? '/provider/dashboard' : (n.link || null);
+              return (
+                <div 
+                  key={n.id} 
+                  onClick={() => markAsRead(n.id, navLink || undefined)}
+                  className={`p-6 flex items-start gap-4 transition-colors ${
+                    navLink ? 'cursor-pointer' : ''
+                  } ${!n.isRead ? 'bg-blue-50/30 hover:bg-blue-50' : 'bg-white hover:bg-gray-50'}`}
+                >
+                  <div className={`p-3 rounded-full flex-shrink-0 ${!n.isRead ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                    {getIcon(n.type, n.title)}
                   </div>
                   
-                  <p className={`text-sm ${!n.isRead ? 'text-gray-800' : 'text-gray-500'}`}>
-                    {n.message}
-                  </p>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className={`text-base font-bold ${!n.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
+                        {n.title}
+                      </h3>
+                      <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
+                        {new Date(n.createdAt).toLocaleString("uz-UZ")}
+                      </span>
+                    </div>
+                    
+                    <p className={`text-sm ${!n.isRead ? 'text-gray-800' : 'text-gray-500'}`}>
+                      {n.message}
+                    </p>
+                    
+                    {navLink && !n.isRead && (
+                      <span className="mt-2 inline-block text-xs text-blue-600 font-bold">
+                        Bosing → Ko'rish
+                      </span>
+                    )}
+                  </div>
                   
                   {!n.isRead && (
-                    <button 
-                      onClick={() => markAsRead(n.id)}
-                      className="mt-3 text-xs text-blue-600 font-bold hover:text-blue-800"
-                    >
-                      O'qildi deb belgilash
-                    </button>
+                    <div className="w-2 h-2 rounded-full bg-blue-600 mt-2 flex-shrink-0"></div>
                   )}
                 </div>
-                
-                {!n.isRead && (
-                  <div className="w-2 h-2 rounded-full bg-blue-600 mt-2"></div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

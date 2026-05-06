@@ -31,6 +31,12 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     const hashedPassword = await bcrypt.hash(password, 10);
     const name = `${firstName} ${lastName}`.trim();
 
+function generateWalletId(): string {
+  return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+}
+
+    const walletId = generateWalletId();
+
     const user = await prisma.user.create({
       data: {
         firstName,
@@ -40,6 +46,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         email,
         password: hashedPassword,
         role: 'USER',
+        walletId,
       }
     });
 

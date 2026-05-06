@@ -6,7 +6,7 @@ import { useAuthStore } from "../../lib/store";
 import api from "../../lib/api";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { User, Mail, Shield, Star, Calendar, Briefcase, MapPin, CheckCircle, Edit3, Copy } from "lucide-react";
+import { User, Mail, Shield, Star, Calendar, Briefcase, MapPin, CheckCircle, Edit3, Copy, MessageSquare } from "lucide-react";
 
 import { AxiosError } from "axios";
 
@@ -16,7 +16,9 @@ export default function Profile() {
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
 
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [orgName, setOrgName] = useState("");
@@ -41,7 +43,9 @@ export default function Profile() {
       const res = await api.get("/user/me");
       if (res.data.success) {
         setProfile(res.data.data);
-        setName(res.data.data.name);
+        setFirstName(res.data.data.firstName || "");
+        setLastName(res.data.data.lastName || "");
+        setUsername(res.data.data.username || "");
       }
     } catch (error) {
       console.error(error);
@@ -50,17 +54,17 @@ export default function Profile() {
     }
   };
 
-  const handleUpdateName = async (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await api.patch("/user/me", { name });
+      const res = await api.patch("/user/me/profile", { firstName, lastName, username });
       if (res.data.success) {
-        toast.success("Ism yangilandi!");
-        setProfile({ ...profile, name: res.data.data.name });
+        toast.success("Profil yangilandi!");
+        setProfile({ ...profile, ...res.data.data });
         // Update auth store too
         const token = localStorage.getItem("accessToken") || "";
         const refreshToken = localStorage.getItem("refreshToken") || "";
-        setAuth({ ...authUser!, name: res.data.data.name }, token, refreshToken);
+        setAuth({ ...authUser!, name: res.data.data.name, username: res.data.data.username }, token, refreshToken);
         setEditing(false);
       }
     } catch (error) {
@@ -103,6 +107,17 @@ export default function Profile() {
     }
   };
 
+  const handleOpenAdminChat = async () => {
+    try {
+      const res = await api.post("/my/admin-chat");
+      if (res.data.success) {
+        router.push("/admin-chat");
+      }
+    } catch (error) {
+      toast.error("Admin chat ochishda xatolik");
+    }
+  };
+
   if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
   if (!profile) return null;
 
@@ -127,16 +142,38 @@ export default function Profile() {
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               {editing ? (
-                <form onSubmit={handleUpdateName} className="flex items-center gap-2">
+                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-2 w-full max-w-sm">
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="text-2xl font-bold border-b-2 border-blue-500 focus:outline-none bg-transparent"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Ism"
+                    className="text-lg font-bold border-b border-blue-500 focus:outline-none bg-transparent"
                     autoFocus
                   />
-                  <button type="submit" className="text-blue-600 hover:text-blue-800 text-sm font-medium">Saqlash</button>
-                  <button type="button" onClick={() => { setEditing(false); setName(profile.name); }} className="text-gray-400 hover:text-gray-600 text-sm">Bekor</button>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Familya"
+                    className="text-lg font-bold border-b border-blue-500 focus:outline-none bg-transparent"
+                  />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username"
+                    className="text-lg font-bold border-b border-blue-500 focus:outline-none bg-transparent"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button type="submit" className="text-blue-600 hover:text-blue-800 text-sm font-medium">Saqlash</button>
+                    <button type="button" onClick={() => { 
+                      setEditing(false); 
+                      setFirstName(profile.firstName || ""); 
+                      setLastName(profile.lastName || ""); 
+                      setUsername(profile.username || ""); 
+                    }} className="text-gray-400 hover:text-gray-600 text-sm">Bekor</button>
+                  </div>
                 </form>
               ) : (
                 <>
@@ -176,17 +213,40 @@ export default function Profile() {
               </div>
             </div>
 
-            <div className="mt-3">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${roleBadge.color}`}>
+            {/* User statistikasi */}
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-center">
+                <div className="text-lg font-extrabold text-blue-700">{Math.round(profile.reliability || 100)}%</div>
+                <div className="text-[10px] text-blue-500 font-medium">📊 Ishonchlilik</div>
+              </div>
+              <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2 text-center">
+                <div className="text-lg font-extrabold text-green-700">{profile.successfulOrders ?? 0}</div>
+                <div className="text-[10px] text-green-500 font-medium">✅ Muvaffaqiyatli</div>
+              </div>
+              <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-center">
+                <div className="text-lg font-extrabold text-red-600">{profile.cancelledOrders ?? 0}</div>
+                <div className="text-[10px] text-red-400 font-medium">❌ Bekor qilingan</div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${roleBadge.color}`}>
                 {roleBadge.label}
               </span>
+              <button
+                onClick={handleOpenAdminChat}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-bold transition-colors border border-blue-200"
+              >
+                <MessageSquare size={14} />
+                Admin bilan bog'lanish
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Provider Section or CTA */}
-      {profile.role === "USER" && !providerProfile && (
+      {profile.role === "USER" && (!profile.providerApplications || profile.providerApplications.length === 0) && !profile.providerProfile && (
         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-8 rounded-3xl border border-emerald-100">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
@@ -203,14 +263,17 @@ export default function Profile() {
         </div>
       )}
 
-      {providerProfile && providerProfile.status === "PENDING" && (
+      {profile.providerApplications && profile.providerApplications.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-2xl text-center">
           <h3 className="text-lg font-bold text-yellow-800 mb-2">Ariza ko'rib chiqilmoqda</h3>
-          <p className="text-yellow-700 text-sm">Sizning provayderlik arizangiz admin tomonidan tekshirilmoqda. Tez orada javob beriladi.</p>
+          <p className="text-yellow-700 text-sm max-w-md mx-auto">
+            Sizning provayder bo'lish arizangiz adminlar tomonidan ko'rib chiqilmoqda. 
+            Natija bo'yicha xabarnoma olasiz.
+          </p>
         </div>
       )}
 
-      {providerProfile && providerProfile.status === "REJECTED" && (
+      {profile.role === "PROVIDER" && profile.providerProfile && profile.providerProfile.status === "REJECTED" && (
         <div className="bg-red-50 border border-red-200 p-6 rounded-2xl">
           <h3 className="text-lg font-bold text-red-800 mb-2">Ariza rad etildi</h3>
           <p className="text-red-700 text-sm mb-4">Sabab: {providerProfile.rejectionNote || "Ko'rsatilmagan"}</p>

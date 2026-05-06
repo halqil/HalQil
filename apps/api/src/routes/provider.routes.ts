@@ -4,7 +4,8 @@ import {
   addSkill, removeSkill,
   addPortfolioImage, removePortfolioImage,
   applyToCreateOrganization, applyToJoinOrganization,
-  updateAvailabilityStatus, getSchedule, updateSchedule, updateBio
+  updateAvailabilityStatus, getSchedule, updateSchedule, updateBio,
+  getMyApplication
 } from '../controllers/provider.controller';
 import { validate } from '../middlewares/validate';
 import { applyProviderSchema, updateProfileSchema, addSkillSchema } from '../schemas/provider.schema';
@@ -16,7 +17,8 @@ const router = Router();
 router.use(authenticate);
 
 // Provider application
-router.post('/apply', validate(applyProviderSchema), applyForProvider);
+router.post('/apply', applyForProvider);
+router.get('/my-application', getMyApplication);
 
 // Profile management
 router.get('/profile', getMyProfile);

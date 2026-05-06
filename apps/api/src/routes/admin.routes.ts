@@ -2,13 +2,14 @@ import { Router } from 'express';
 import {
   getCategories, createCategory, updateCategory, toggleCategory,
   getSkills, createSkill, updateSkill, toggleSkill,
-  getApplications, getApplicationDetail, approveApplication, rejectApplication,
+  getApplications, getApplicationDetail, approveApplication, rejectApplication, openApplicationChat,
   getOrgApplications, approveOrgApplication, rejectOrgApplication,
   getAdminOrganizations, updateOrganization, toggleOrganization,
   getUsers, getUserDetail, changeUserRole, changeUserStatus, deleteUser,
   getAdminChats, createAdminChat, getAdminChatMessages, sendAdminChatMessage,
   broadcastNotification, sendNotificationToUser
 } from '../controllers/admin.controller';
+import { resolveDispute } from '../controllers/order.controller';
 import { validate } from '../middlewares/validate';
 import { createCategorySchema, updateCategorySchema, createSkillSchema, updateSkillSchema } from '../schemas/admin.schema';
 import { authenticate, authorize } from '../middlewares/auth';
@@ -32,8 +33,9 @@ router.patch('/skills/:id/toggle', toggleSkill);
 // Provider Applications
 router.get('/applications', getApplications);
 router.get('/applications/:id', getApplicationDetail);
-router.post('/applications/:id/approve', approveApplication);
-router.post('/applications/:id/reject', rejectApplication);
+router.patch('/applications/:id/approve', approveApplication);
+router.patch('/applications/:id/reject', rejectApplication);
+router.patch('/applications/:id/open-chat', openApplicationChat);
 
 // Organization Applications
 router.get('/organizations/applications', getOrgApplications);
@@ -61,5 +63,23 @@ router.post('/chats/:id/messages', sendAdminChatMessage);
 // Admin Notifications
 router.post('/notifications/broadcast', broadcastNotification);
 router.post('/notifications/send', sendNotificationToUser);
+
+// Disputed Orders
+router.get('/orders/disputed', async (req, res, next) => {
+  try {
+    const { prisma } = await import('../lib/prisma');
+    const orders = await prisma.order.findMany({
+      where: { status: 'DISPUTED' },
+      include: {
+        user: { select: { id: true, name: true, avatar: true } },
+        provider: { include: { user: { select: { id: true, name: true, avatar: true } } } },
+        skill: true
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+    res.json({ success: true, data: orders });
+  } catch (error) { next(error); }
+});
+router.patch('/orders/:id/resolve', resolveDispute);
 
 export default router;

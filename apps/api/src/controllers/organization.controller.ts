@@ -1,14 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
+import { emitNotification } from '../lib/socket';
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 
 /**
- * @desc    Xabarnoma yuborish (Helper)
+ * @desc    Xabarnoma yuborish (Helper) — DB + real-time Socket.IO
  */
-export const sendNotification = async (userId: string, title: string, message: string) => {
+export const sendNotification = async (
+  userId: string,
+  title: string,
+  message: string,
+  link?: string
+) => {
   try {
-    await prisma.notification.create({ data: { userId, title, message } });
+    const notif = await prisma.notification.create({
+      data: { userId, title, message }
+    });
+    // Real-time delivery
+    emitNotification(userId, { ...notif, link });
   } catch (e) {
     console.error('Notification error:', e);
   }

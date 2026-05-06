@@ -5,55 +5,161 @@ import { sendNotification } from './organization.controller';
 // ─── Apply for Provider ───────────────────────────────────────────────────────
 /**
  * @desc    Provayder bo'lish uchun ariza topshirish
- * @route   POST /api/providers/apply
+ * @route   POST /api/provider/apply
  * @access  Private (USER)
  */
 export const applyForProvider = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' });
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const { bio, skill_ids, districts, price_notes } = req.body;
+    const { aboutMe, whyJoin, portfolioLink, workDistricts, dailyLimit, skills } = req.body;
 
-    const existingProfile = await prisma.providerProfile.findUnique({ where: { userId } });
-    if (existingProfile) {
-      if (existingProfile.status === 'PENDING') return res.status(400).json({ success: false, error: 'Ariza allaqachon ko\'rib chiqilmoqda', code: 'APPLICATION_PENDING' });
-      if (existingProfile.status === 'APPROVED') return res.status(400).json({ success: false, error: 'Siz allaqachon provaydersiz', code: 'ALREADY_PROVIDER' });
+    // ─── Validatsiya ──────────────────────────────────────────────────────────
+    if (!aboutMe || aboutMe.trim().length < 50) {
+      return res.status(400).json({ success: false, error: 'aboutMe kamida 50 belgi bo\'lishi kerak' });
+    }
+    if (!whyJoin || whyJoin.trim().length < 30) {
+      return res.status(400).json({ success: false, error: 'whyJoin kamida 30 belgi bo\'lishi kerak' });
+    }
+    if (!workDistricts || !Array.isArray(workDistricts) || workDistricts.length === 0) {
+      return res.status(400).json({ success: false, error: 'Kamida 1 ta tuman tanlash kerak' });
+    }
+    if (!skills || !Array.isArray(skills) || skills.length === 0) {
+      return res.status(400).json({ success: false, error: 'Kamida 1 ta xizmat qo\'shish kerak' });
+    }
+    if (dailyLimit !== undefined && dailyLimit !== null) {
+      const dl = Number(dailyLimit);
+      if (isNaN(dl) || dl < 1 || dl > 50) {
+        return res.status(400).json({ success: false, error: 'dailyLimit 1 dan 50 gacha bo\'lishi kerak' });
+      }
+    }
+    if (portfolioLink && portfolioLink.trim()) {
+      try { new URL(portfolioLink.trim()); } catch {
+        return res.status(400).json({ success: false, error: 'portfolioLink to\'g\'ri URL formatida bo\'lishi kerak' });
+      }
     }
 
-    const newProfile = await prisma.$transaction(async (tx) => {
-      const profile = await tx.providerProfile.upsert({
-        where: { userId },
-        update: { bio, serviceType: 'INDEPENDENT', status: 'PENDING' },
-        create: { userId, bio, serviceType: 'INDEPENDENT', status: 'PENDING' }
-      });
+    // ─── Allaqachon ariza bor-yo'qligini tekshirish ───────────────────────────
+    const existing = await prisma.providerApplication.findFirst({
+      where: { userId, status: { in: ['PENDING', 'APPROVED'] } }
+    });
+    if (existing?.status === 'APPROVED') {
+      return res.status(400).json({ success: false, error: 'Siz allaqachon provaydersiz' });
+    }
+    if (existing?.status === 'PENDING') {
+      return res.status(400).json({ success: false, error: 'Arizangiz allaqachon ko\'rib chiqilmoqda' });
+    }
 
-      await tx.providerSkill.deleteMany({ where: { providerId: profile.id } });
-      await tx.providerDistrict.deleteMany({ where: { providerId: profile.id } });
+    // ─── Skilllarni validatsiya qilish ────────────────────────────────────────
+    for (const s of skills) {
+      if (!s.skillId) return res.status(400).json({ success: false, error: 'Har bir xizmat uchun skillId majburiy' });
+      if (!s.description || s.description.trim().length < 20) {
+        return res.status(400).json({ success: false, error: `Skill tavsifi kamida 20 belgi bo'lishi kerak` });
+      }
+      if (!['ORGANIZED', 'UNORGANIZED', 'BOTH'].includes(s.serviceType)) {
+        return res.status(400).json({ success: false, error: 'serviceType: ORGANIZED | UNORGANIZED | BOTH' });
+      }
+      const expYears = Number(s.experienceYears);
+      if (isNaN(expYears) || expYears < 0.5 || expYears > 50) {
+        return res.status(400).json({ success: false, error: 'experienceYears 0.5 dan 50 gacha bo\'lishi kerak' });
+      }
+      if (s.priceFrom !== undefined && s.priceTo !== undefined &&
+          s.priceFrom !== null && s.priceTo !== null) {
+        if (Number(s.priceTo) <= Number(s.priceFrom)) {
+          return res.status(400).json({ success: false, error: 'priceTo priceFrom dan katta bo\'lishi kerak' });
+        }
+      }
 
-      const skillData = skill_ids.map((skillId: string) => {
-        const pNote = price_notes?.find((n: any) => n.skill_id === skillId);
-        return {
-          providerId: profile.id,
-          skillId,
-          priceFrom: pNote?.price_from,
-          priceTo: pNote?.price_to,
-          experienceYears: pNote?.experience_years ?? 0,
-        };
-      });
-      await tx.providerSkill.createMany({ data: skillData });
+      // Skill mavjud va active bo'lishi kerak
+      const skill = await prisma.skill.findUnique({ where: { id: s.skillId } });
+      if (!skill || !skill.isActive) {
+        return res.status(400).json({ success: false, error: `Skill topilmadi yoki nofaol: ${s.skillId}` });
+      }
+    }
 
-      const districtData = districts.map((districtName: string) => ({ providerId: profile.id, districtName }));
-      await tx.providerDistrict.createMany({ data: districtData });
-
-      return profile;
+    // ─── Foydalanuvchi ma'lumotlari ───────────────────────────────────────────
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true, name: true, username: true }
     });
 
-    res.status(201).json({ success: true, data: newProfile });
+    // ─── Ariza yaratish ───────────────────────────────────────────────────────
+    const application = await prisma.$transaction(async (tx) => {
+      const app = await tx.providerApplication.create({
+        data: {
+          userId,
+          aboutMe: aboutMe.trim(),
+          whyJoin: whyJoin.trim(),
+          portfolioLink: portfolioLink?.trim() || null,
+          workDistricts,
+          dailyLimit: dailyLimit ? Number(dailyLimit) : null,
+          status: 'PENDING',
+          skills: {
+            create: skills.map((s: any) => ({
+              skillId: s.skillId,
+              serviceType: s.serviceType,
+              experienceYears: Number(s.experienceYears),
+              priceFrom: s.priceFrom ? Number(s.priceFrom) : null,
+              priceTo: s.priceTo ? Number(s.priceTo) : null,
+              description: s.description.trim(),
+              portfolioImages: s.portfolioImages || []
+            }))
+          }
+        }
+      });
+      return app;
+    });
+
+    // ─── SUPER_ADMIN larga notification ───────────────────────────────────────
+    const admins = await prisma.user.findMany({
+      where: { role: 'SUPER_ADMIN' },
+      select: { id: true }
+    });
+    const userName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.name || 'Foydalanuvchi';
+    const notifData = admins.map(a => ({
+      userId: a.id,
+      type: 'NEW_APPLICATION' as any,
+      title: 'Yangi provayder arizasi',
+      message: `${userName}${user?.username ? ` (@${user.username})` : ''} provayder bo'lish uchun ariza topshirdi`,
+      link: `/admin/applications/${application.id}`,
+      isGlobal: false
+    }));
+    if (notifData.length > 0) {
+      await prisma.notification.createMany({ data: notifData });
+    }
+
+    res.status(201).json({ success: true, data: { id: application.id, status: 'PENDING' } });
   } catch (error) {
     next(error);
   }
 };
+
+// ─── Get My Application ───────────────────────────────────────────────────────
+/**
+ * @desc    O'z arizasini olish
+ * @route   GET /api/provider/my-application
+ * @access  Private
+ */
+export const getMyApplication = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    const app = await prisma.providerApplication.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        skills: {
+          include: { skill: { include: { category: true } } }
+        }
+      }
+    });
+    res.json({ success: true, data: app });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 
 // ─── Get My Profile ───────────────────────────────────────────────────────────
 /**
@@ -131,6 +237,7 @@ export const updateBio = async (req: Request, res: Response, next: NextFunction)
 
     const profile = await prisma.providerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ success: false, error: 'Profil topilmadi', code: 'NOT_FOUND' });
+    if (profile.status !== 'APPROVED') return res.status(403).json({ success: false, error: 'Faqat tasdiqlangan provayderlar bio kirita oladi', code: 'NOT_APPROVED' });
 
     const updated = await prisma.providerProfile.update({
       where: { userId },
@@ -154,8 +261,9 @@ export const updateAvailabilityStatus = async (req: Request, res: Response, next
     const userId = req.user?.userId;
     const { status } = req.body;
 
-    if (!['AVAILABLE', 'BUSY', 'OFFLINE'].includes(status)) {
-      return res.status(400).json({ success: false, error: 'Noto\'g\'ri status' });
+    // Faqat AVAILABLE va BUSY manual tanlanishi mumkin — OFFLINE faqat isOnline orqali
+    if (!['AVAILABLE', 'BUSY'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Faqat AVAILABLE yoki BUSY tanlanishi mumkin', code: 'INVALID_STATUS' });
     }
 
     const profile = await prisma.providerProfile.findUnique({ where: { userId } });

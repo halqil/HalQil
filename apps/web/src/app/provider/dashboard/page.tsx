@@ -32,6 +32,13 @@ export default function ProviderDashboard() {
   // Schedule state
   const [schedules, setSchedules] = useState<Record<string, any>[]>([]);
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
+
+  // Modal state — Accept / Reject
+  const [acceptModal, setAcceptModal] = useState<{ orderId: string } | null>(null);
+  const [rejectModal, setRejectModal] = useState<{ orderId: string } | null>(null);
+  const [acceptMessage, setAcceptMessage] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
   
   const DAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
 
@@ -137,24 +144,51 @@ export default function ProviderDashboard() {
     }
   };
 
-  const handleOrderAction = async (orderId: string, action: string) => {
+  const handleOrderAction = async (orderId: string, action: string, body: Record<string, any> = {}) => {
+    setActionLoading(true);
     try {
-      let body = {};
-      if (action === 'reject') {
-        const reason = prompt("Rad etish sababini kiriting:");
-        if (!reason) return;
-        body = { rejection_reason: reason };
-      }
-      
       const res = await api.patch(`/orders/${orderId}/${action}`, body);
       if (res.data.success) {
         toast.success(`Buyurtma holati o'zgardi!`);
         fetchOrders();
+        // Chat ochilsa — sahifaga o'tish
+        if (action === 'chat') {
+          router.push(`/orders/${orderId}`);
+        }
       }
     } catch (error) {
       const err = error as AxiosError<{ error: string }>;
       toast.error(err.response?.data?.error || "Xatolik yuz berdi");
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  const handleOpenAdminChat = async () => {
+    try {
+      const res = await api.post("/my/admin-chat");
+      if (res.data.success) {
+        router.push("/admin-chat");
+      }
+    } catch (error) {
+      toast.error("Admin chat ochishda xatolik");
+    }
+  };
+
+  const handleAcceptSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!acceptModal) return;
+    await handleOrderAction(acceptModal.orderId, 'accept', { message: acceptMessage });
+    setAcceptModal(null);
+    setAcceptMessage("");
+  };
+
+  const handleRejectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectModal) return;
+    await handleOrderAction(rejectModal.orderId, 'reject', { reason: rejectReason });
+    setRejectModal(null);
+    setRejectReason("");
   };
 
   const getFilteredOrders = () => {
@@ -196,7 +230,10 @@ export default function ProviderDashboard() {
           <h1 className="text-3xl font-bold mb-2">Provayder Dashboard</h1>
           <p className="text-emerald-100">Buyurtmalaringiz va faoliyatingizni boshqaring</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <button onClick={handleOpenAdminChat} className="bg-white/20 hover:bg-white/30 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all backdrop-blur-sm border border-white/20">
+            <MessageSquare size={18} /> Yordam
+          </button>
           <Link href="/profile" className="bg-white/20 hover:bg-white/30 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all backdrop-blur-sm border border-white/20">
             <User size={18} /> Profil
           </Link>
@@ -212,42 +249,44 @@ export default function ProviderDashboard() {
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
             <h3 className="font-bold text-gray-900 mb-4 text-lg">Mening Holatim</h3>
             <div className="flex gap-2 mb-6">
-              {['AVAILABLE', 'BUSY', 'OFFLINE'].map(s => (
+              {(['AVAILABLE', 'BUSY'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => handleUpdateStatus(s)}
                   disabled={updatingStatus}
                   className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                     status === s 
-                      ? (s === 'AVAILABLE' ? 'bg-emerald-600 text-white' : s === 'BUSY' ? 'bg-yellow-500 text-white' : 'bg-gray-600 text-white')
+                      ? (s === 'AVAILABLE' ? 'bg-emerald-600 text-white' : 'bg-yellow-500 text-white')
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}
                 >
-                  {s === 'AVAILABLE' ? 'Bo\'sh' : s === 'BUSY' ? 'Band' : 'Offline'}
+                  {s === 'AVAILABLE' ? "Bo'sh" : 'Band'}
                 </button>
               ))}
             </div>
 
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-bold text-gray-900">Bio</h4>
-                <button onClick={() => setIsEditingBio(!isEditingBio)} className="text-xs text-blue-600 font-bold">
-                  {isEditingBio ? "Bekor qilish" : "Tahrirlash"}
-                </button>
-              </div>
-              {isEditingBio ? (
-                <div className="space-y-2">
-                  <textarea 
-                    value={bio} onChange={e => setBio(e.target.value)} 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    rows={3}
-                  ></textarea>
-                  <button onClick={handleUpdateBio} className="w-full bg-blue-600 text-white rounded-xl py-2 text-sm font-bold">Saqlash</button>
+            {profile?.status === 'APPROVED' && (
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-bold text-gray-900">Bio</h4>
+                  <button onClick={() => setIsEditingBio(!isEditingBio)} className="text-xs text-blue-600 font-bold">
+                    {isEditingBio ? "Bekor qilish" : "Tahrirlash"}
+                  </button>
                 </div>
-              ) : (
-                <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-xl">{profile?.bio || "Bio kiritilmagan"}</p>
-              )}
-            </div>
+                {isEditingBio ? (
+                  <div className="space-y-2">
+                    <textarea 
+                      value={bio} onChange={e => setBio(e.target.value)} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      rows={3}
+                    ></textarea>
+                    <button onClick={handleUpdateBio} className="w-full bg-blue-600 text-white rounded-xl py-2 text-sm font-bold">Saqlash</button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-xl">{profile?.bio || "Bio kiritilmagan"}</p>
+                )}
+              </div>
+            )}
 
             <div>
               <div className="flex justify-between items-center mb-2">
@@ -324,6 +363,7 @@ export default function ProviderDashboard() {
               <div key={order.id} className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md hover:border-emerald-100 transition-all">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                   <div className="flex-1">
+                    {/* Status + Meta */}
                     <div className="flex items-center gap-3 mb-3">
                       {getStatusBadge(order.status)}
                       {order.organization && (
@@ -336,54 +376,87 @@ export default function ProviderDashboard() {
                       </span>
                     </div>
 
+                    {/* Skill + Description */}
                     <h3 className="text-xl font-bold text-gray-900 mb-1">{order.skill?.name || "Noma'lum xizmat"}</h3>
                     <p className="text-gray-600 mb-4">{order.description}</p>
 
+                    {/* Info grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-2xl mb-4 text-sm">
+                      {/* Mijoz */}
                       <div>
                         <span className="text-gray-500 block mb-1 text-xs">Mijoz:</span>
-                        <div className="font-semibold text-gray-900 flex items-center gap-2">
+                        <a
+                          href={`/users/${order.user?.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-blue-600 hover:underline flex items-center gap-2"
+                        >
+                          {order.user?.avatar ? (
+                            <img src={`http://localhost:5000${order.user.avatar}`} alt={order.user.name} className="w-6 h-6 rounded-full object-cover" />
+                          ) : (
+                            <span className="w-6 h-6 rounded-full bg-blue-200 text-blue-700 text-xs flex items-center justify-center font-bold">
+                              {order.user?.name?.charAt(0)}
+                            </span>
+                          )}
                           {order.user?.name}
-                        </div>
+                        </a>
                       </div>
+                      {/* Manzil */}
                       <div>
-                        <span className="text-gray-500 block mb-1 text-xs text-xs">Manzil:</span>
+                        <span className="text-gray-500 block mb-1 text-xs">Manzil:</span>
                         <div className="font-semibold text-gray-900 flex items-center gap-1">
                           <MapPin size={14} className="text-red-500" /> {order.address}
                         </div>
                       </div>
-                      {order.preferredTime && (
-                         <div className="sm:col-span-2">
-                            <span className="text-gray-500 block mb-1 text-xs">Qulay vaqt:</span>
-                            <div className="font-semibold text-gray-900 flex items-center gap-1">
-                               <Calendar size={14} className="text-blue-500" /> {order.preferredTime}
-                            </div>
-                         </div>
+                      {/* Qulay vaqt */}
+                      {order.preferredDate && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500 block mb-1 text-xs">Qulay vaqt:</span>
+                          <div className="font-semibold text-gray-900 flex items-center gap-1">
+                            <Calendar size={14} className="text-blue-500" />
+                            {new Date(order.preferredDate).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" })}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col gap-2 min-w-[140px] mt-4 md:mt-0 border-t md:border-t-0 pt-4 md:pt-0">
+                  <div className="flex flex-col gap-2 min-w-[150px] mt-4 md:mt-0 border-t md:border-t-0 pt-4 md:pt-0">
                     {order.status === "PENDING" && (
                       <>
-                        <button onClick={() => handleOrderAction(order.id, "accept")} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                        <button
+                          disabled={actionLoading}
+                          onClick={() => setAcceptModal({ orderId: order.id })}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                        >
                           <CheckCircle size={16} /> Qabul qilish
                         </button>
-                        <button onClick={() => handleOrderAction(order.id, "reject")} className="w-full bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                        <button
+                          disabled={actionLoading}
+                          onClick={() => handleOrderAction(order.id, 'chat')}
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                          <MessageSquare size={16} /> Chat ochish
+                        </button>
+                        <button
+                          disabled={actionLoading}
+                          onClick={() => setRejectModal({ orderId: order.id })}
+                          className="w-full bg-red-50 hover:bg-red-100 disabled:opacity-60 text-red-600 px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                        >
                           <XCircle size={16} /> Rad etish
                         </button>
                       </>
                     )}
 
                     {order.status === "ACCEPTED" && (
-                      <button onClick={() => handleOrderAction(order.id, "open-chat")} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                      <button onClick={() => handleOrderAction(order.id, "chat")} disabled={actionLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
                         <MessageSquare size={16} /> Chat ochish
                       </button>
                     )}
 
                     {order.status === "CHATTING" && (
-                      <button onClick={() => handleOrderAction(order.id, "complete")} className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                      <button onClick={() => handleOrderAction(order.id, "complete")} disabled={actionLoading} className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
                         <CheckCircle size={16} /> Ishni yakunlash
                       </button>
                     )}
@@ -406,6 +479,84 @@ export default function ProviderDashboard() {
           )}
         </div>
       </div>
+
+      {/* ───── Accept Modal ───── */}
+      {acceptModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-xl font-bold mb-1">✅ Buyurtmani qabul qilish</h2>
+            <p className="text-sm text-gray-500 mb-4">Mijozga yuboriladi</p>
+            <form onSubmit={handleAcceptSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Qabul qilish xabari</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={acceptMessage}
+                  onChange={e => setAcceptMessage(e.target.value)}
+                  placeholder="Masalan: Qabul qildim, tez orada bog'lanaman!"
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-gray-50"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setAcceptModal(null); setAcceptMessage(""); }}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                >
+                  Bekor
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl font-bold"
+                >
+                  {actionLoading ? "Yuborilmoqda..." : "Yuborish"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ───── Reject Modal ───── */}
+      {rejectModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-xl font-bold mb-1">❌ Buyurtmani rad etish</h2>
+            <p className="text-sm text-gray-500 mb-4">Sabab mijozga yuboriladi</p>
+            <form onSubmit={handleRejectSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Rad etish sababi</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  placeholder="Masalan: Ushbu kunda bandman..."
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-red-500 outline-none bg-gray-50"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setRejectModal(null); setRejectReason(""); }}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                >
+                  Bekor
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl font-bold"
+                >
+                  {actionLoading ? "Yuborilmoqda..." : "Rad etish"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

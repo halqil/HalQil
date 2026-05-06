@@ -9,11 +9,12 @@ import toast from "react-hot-toast";
 import {
   CheckCircle, XCircle, Users, LayoutList, Plus, ChevronDown,
   ChevronRight, ToggleLeft, ToggleRight, X, Folder, Wrench, Loader2, Building,
-  MessageSquare, Bell
+  MessageSquare, Bell, AlertTriangle
 } from "lucide-react";
 import AdminUsers from "../../components/admin/AdminUsers";
 import AdminNotifications from "../../components/admin/AdminNotifications";
 import AdminChat from "../../components/admin/AdminChat";
+import AdminApplications from "../../components/admin/AdminApplications";
 
 interface Skill {
   id: string;
@@ -35,7 +36,7 @@ interface Application {
   status: string;
   bio?: string;
   serviceType: string;
-  user?: { name: string; email: string; avatar?: string };
+  user?: { name: string; email: string; avatar?: string; username?: string; walletId?: string };
 }
 
 export default function AdminDashboard() {
@@ -49,6 +50,9 @@ export default function AdminDashboard() {
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [disputes, setDisputes] = useState<Record<string, any>[]>([]);
+  const [resolveNote, setResolveNote] = useState<string>("");
+  const [resolveOrderId, setResolveOrderId] = useState<string | null>(null);
 
   // New Category Modal
   const [showCatModal, setShowCatModal] = useState(false);
@@ -73,14 +77,16 @@ export default function AdminDashboard() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [catsRes, appsRes, orgAppsRes] = await Promise.all([
+      const [catsRes, appsRes, orgAppsRes, disputesRes] = await Promise.all([
         api.get("/admin/categories"),
         api.get("/admin/applications"),
-        api.get("/admin/organizations/applications")
+        api.get("/admin/organizations/applications"),
+        api.get("/admin/orders/disputed")
       ]);
       setCategories(catsRes.data.data);
       setApplications(appsRes.data.data);
       setOrgApplications(orgAppsRes.data.data);
+      setDisputes(disputesRes.data.data || []);
     } catch (err) {
       toast.error("Ma'lumotlarni yuklashda xatolik");
     } finally {
@@ -188,7 +194,11 @@ export default function AdminDashboard() {
       if (action === "reject") {
         const reason = prompt("Rad etish sababini kiriting:");
         if (!reason) { setActionLoading(null); return; }
-        body = { rejection_note: reason };
+        body = { reason };
+      } else if (action === "approve") {
+        const message = prompt("Tasdiqlash xabarini kiriting:");
+        if (!message) { setActionLoading(null); return; }
+        body = { message };
       }
       const res = await api.post(`/admin/applications/${id}/${action}`, body);
       if (res.data.success) {
@@ -225,6 +235,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleResolveDispute = async (orderId: string, decision: string) => {
+    setActionLoading(orderId);
+    try {
+      const note = resolveNote || (decision === 'PROVIDER_FAULT' ? 'Shikoyat asosli topildi' : 'Shikoyat asossiz topildi');
+      await api.patch(`/admin/orders/${orderId}/resolve`, { decision, note });
+      toast.success("Qaror qabul qilindi");
+      setResolveOrderId(null);
+      setResolveNote("");
+      fetchAll();
+    } catch (err) {
+      const error = err as AxiosError<{ error: string }>;
+      toast.error(error.response?.data?.error || "Xatolik");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (loading) return (
     <div className="flex justify-center items-center py-20">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -240,11 +267,12 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex gap-2 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex-wrap">
         {[
           { key: "categories", label: "Kategoriyalar & Xizmatlar", icon: <LayoutList size={16} /> },
-          { key: "applications", label: `Provayder arizalari (${applications.filter(a => a.status === "PENDING").length})`, icon: <Users size={16} /> },
+          { key: "applications", label: "Provayder arizalari", icon: <Users size={16} /> },
           { key: "org_applications", label: `Tashkilot arizalari (${orgApplications.filter(a => a.status === "PENDING").length})`, icon: <Building size={16} /> },
+          { key: "disputes", label: `Shikoyatlar (${disputes.length})`, icon: <AlertTriangle size={16} /> },
           { key: "users", label: "Foydalanuvchilar", icon: <Users size={16} /> },
           { key: "chat", label: "Chatlar", icon: <MessageSquare size={16} /> },
           { key: "notifications", label: "Xabarnoma yuborish", icon: <Bell size={16} /> },
@@ -396,7 +424,11 @@ export default function AdminDashboard() {
                 <div key={app.id} className="border border-gray-100 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-indigo-100 transition-colors">
                   <div>
                     <h3 className="font-bold text-lg">{app.user?.name}</h3>
-                    <p className="text-sm text-gray-500 mb-1">{app.user?.email}</p>
+                    <div className="text-sm text-gray-500 mb-2 flex flex-wrap gap-2">
+                      <span className="bg-gray-100 px-2 py-0.5 rounded">@{app.user?.username || 'user'}</span>
+                      <span>{app.user?.email}</span>
+                      <span className="font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">ID: {app.user?.walletId || '---'}</span>
+                    </div>
                     {app.bio && <p className="text-sm text-gray-600 mb-2 max-w-lg">{app.bio}</p>}
                     <div className="flex gap-2">
                       <span className={`px-2 py-0.5 rounded text-xs font-bold ${app.status === "PENDING" ? "bg-yellow-100 text-yellow-800" : app.status === "APPROVED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
@@ -476,9 +508,122 @@ export default function AdminDashboard() {
       )}
 
       {/* ======== NEW TABS ======== */}
+      {activeTab === "applications" && <AdminApplications />}
       {activeTab === "users" && <AdminUsers />}
       {activeTab === "chat" && <AdminChat />}
       {activeTab === "notifications" && <AdminNotifications />}
+
+
+      {/* ======== DISPUTES TAB ======== */}
+      {activeTab === "disputes" && (
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <AlertTriangle className="text-orange-500" size={22} />
+            Shikoyatlar ({disputes.length})
+          </h2>
+          {disputes.length === 0 ? (
+            <div className="text-center py-16">
+              <CheckCircle className="mx-auto text-green-300 mb-3" size={48} />
+              <p className="text-gray-400">Hozircha shikoyatlar yo'q</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {disputes.map(order => (
+                <div key={order.id} className="border border-orange-100 bg-orange-50/30 rounded-2xl p-5 space-y-4">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-gray-800">{order.skill?.name}</span>
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">DISPUTED</span>
+                      </div>
+                      <div className="text-sm text-gray-500">{new Date(order.createdAt).toLocaleDateString("uz-UZ")}</div>
+                    </div>
+                    <a href={`/orders/${order.id}`} target="_blank" className="text-xs text-blue-600 hover:underline flex-shrink-0">Chat tarixi →</a>
+                  </div>
+
+                  {/* User & Provider */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                      <div className="text-xs text-blue-500 font-medium mb-1">👤 Mijoz</div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-blue-800 font-bold text-xs flex-shrink-0">
+                          {order.user?.name?.charAt(0)}
+                        </div>
+                        <div className="font-medium text-sm text-gray-800">{order.user?.name}</div>
+                      </div>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                      <div className="text-xs text-emerald-500 font-medium mb-1">🔧 Provayder</div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-800 font-bold text-xs flex-shrink-0">
+                          {order.provider?.user?.name?.charAt(0)}
+                        </div>
+                        <div className="font-medium text-sm text-gray-800">{order.provider?.user?.name}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Provayder sababi */}
+                  {(order.unsuccessReason || order.finishType === 'UNSUCCESSFUL') && (
+                    <div className="bg-orange-100 border border-orange-200 rounded-xl p-3">
+                      <div className="text-xs font-bold text-orange-600 mb-1">Provayder sababi ({order.unsuccessCategory})</div>
+                      <p className="text-sm text-orange-800">{order.unsuccessReason || '—'}</p>
+                    </div>
+                  )}
+
+                  {/* User shikoyati */}
+                  {order.disputeReason && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                      <div className="text-xs font-bold text-red-500 mb-1">🚨 Mijoz shikoyati</div>
+                      <p className="text-sm text-red-800">{order.disputeReason}</p>
+                    </div>
+                  )}
+
+                  {/* Resolve actions */}
+                  {resolveOrderId === order.id ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Admin eslatmasi (ixtiyoriy)"
+                        value={resolveNote}
+                        onChange={e => setResolveNote(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-orange-400 outline-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleResolveDispute(order.id, 'PROVIDER_FAULT')}
+                          disabled={actionLoading === order.id}
+                          className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-bold"
+                        >
+                          Provayder aybdor
+                        </button>
+                        <button
+                          onClick={() => handleResolveDispute(order.id, 'USER_FAULT')}
+                          disabled={actionLoading === order.id}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-2 rounded-xl text-sm font-bold"
+                        >
+                          User aybdor
+                        </button>
+                        <button onClick={() => { setResolveOrderId(null); setResolveNote(""); }} className="px-3 text-gray-500 hover:text-gray-700 text-sm">
+                          Bekor
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setResolveOrderId(order.id)}
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-bold"
+                    >
+                      ⚖️ Qaror chiqarish
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ======== MODAL: New Category ======== */}
       {showCatModal && (

@@ -23,8 +23,16 @@ export default function OrganizationDetail() {
   const [selectedSkillId, setSelectedSkillId] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
-  const [preferredTime, setPreferredTime] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
   const [orderLoading, setOrderLoading] = useState(false);
+
+  // Minimal sana: hozirgi vaqt, timezone bilan
+  const getMinDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+  };
+  const [minDateTime, setMinDateTime] = useState(getMinDateTime);
 
   useEffect(() => {
     if (!id) return;
@@ -45,6 +53,10 @@ export default function OrganizationDetail() {
       }
     };
     fetchOrg();
+
+    // Har daqiqada minDateTime ni yangilash
+    const interval = setInterval(() => setMinDateTime(getMinDateTime()), 60_000);
+    return () => clearInterval(interval);
   }, [id, router]);
 
   const handleOrder = async (e: React.FormEvent) => {
@@ -68,7 +80,7 @@ export default function OrganizationDetail() {
         skill_id: selectedSkillId,
         description,
         address,
-        preferred_time: preferredTime
+        preferred_date: preferredDate
       });
       if (res.data.success) {
         toast.success("Buyurtma muvaffaqiyatli yuborildi!");
@@ -274,10 +286,10 @@ export default function OrganizationDetail() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Qulay vaqt (ixtiyoriy)</label>
                 <input 
-                  type="text" 
-                  value={preferredTime}
-                  onChange={e => setPreferredTime(e.target.value)}
-                  placeholder="Masalan: Ertaga soat 14:00"
+                  type="datetime-local"
+                  min={minDateTime}
+                  value={preferredDate}
+                  onChange={(e) => setPreferredDate(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
