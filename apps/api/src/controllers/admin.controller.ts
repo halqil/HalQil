@@ -842,7 +842,6 @@ export const getAdminChats = async (req: Request, res: Response, next: NextFunct
   try {
     const adminId = req.user?.userId;
     const chats = await prisma.adminChat.findMany({
-      where: { adminId },
       include: {
         targetUser: { select: { id: true, name: true, avatar: true, email: true, username: true, walletId: true, role: true, isOnline: true } },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },

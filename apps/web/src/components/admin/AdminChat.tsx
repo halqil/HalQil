@@ -185,7 +185,16 @@ export default function AdminChat() {
   const fetchChats = useCallback(async () => {
     try {
       const res = await api.get("/admin/chats");
-      setChats(res.data.data);
+      const fetchedChats: Chat[] = res.data.data;
+      
+      // Sort by latest message
+      const sortedChats = fetchedChats.sort((a, b) => {
+        const timeA = a.messages?.[0]?.createdAt ? new Date(a.messages[0].createdAt).getTime() : new Date(a.createdAt).getTime();
+        const timeB = b.messages?.[0]?.createdAt ? new Date(b.messages[0].createdAt).getTime() : new Date(b.createdAt).getTime();
+        return timeB - timeA;
+      });
+      
+      setChats(sortedChats);
     } catch {
       toast.error("Chatlarni yuklashda xatolik");
     } finally {
