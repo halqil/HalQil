@@ -178,6 +178,7 @@ function ChatWindow({
 }
 
 export default function AdminChat() {
+  const { user } = useAuthStore();
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [loading, setLoading] = useState(true);

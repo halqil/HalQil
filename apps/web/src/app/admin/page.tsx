@@ -44,7 +44,6 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState("categories");
-  const [applications, setApplications] = useState<Application[]>([]);
   const [orgApplications, setOrgApplications] = useState<Record<string, any>[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
@@ -77,14 +76,12 @@ export default function AdminDashboard() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [catsRes, appsRes, orgAppsRes, disputesRes] = await Promise.all([
+      const [catsRes, orgAppsRes, disputesRes] = await Promise.all([
         api.get("/admin/categories"),
-        api.get("/admin/applications"),
         api.get("/admin/organizations/applications"),
         api.get("/admin/orders/disputed")
       ]);
       setCategories(catsRes.data.data);
-      setApplications(appsRes.data.data);
       setOrgApplications(orgAppsRes.data.data);
       setDisputes(disputesRes.data.data || []);
     } catch (err) {
@@ -412,55 +409,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ======== APPLICATIONS TAB ======== */}
-      {activeTab === "applications" && (
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-          <h2 className="text-xl font-bold mb-6">Provayderlik arizalari</h2>
-          {applications.length === 0 ? (
-            <p className="text-gray-400 text-center py-10">Arizalar yo'q</p>
-          ) : (
-            <div className="space-y-4">
-              {applications.map(app => (
-                <div key={app.id} className="border border-gray-100 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-indigo-100 transition-colors">
-                  <div>
-                    <h3 className="font-bold text-lg">{app.user?.name}</h3>
-                    <div className="text-sm text-gray-500 mb-2 flex flex-wrap gap-2">
-                      <span className="bg-gray-100 px-2 py-0.5 rounded">@{app.user?.username || 'user'}</span>
-                      <span>{app.user?.email}</span>
-                      <span className="font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">ID: {app.user?.walletId || '---'}</span>
-                    </div>
-                    {app.bio && <p className="text-sm text-gray-600 mb-2 max-w-lg">{app.bio}</p>}
-                    <div className="flex gap-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${app.status === "PENDING" ? "bg-yellow-100 text-yellow-800" : app.status === "APPROVED" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                        {app.status}
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{app.serviceType}</span>
-                    </div>
-                  </div>
-                  {app.status === "PENDING" && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleApplication(app.id, "approve")}
-                        disabled={actionLoading === app.id}
-                        className="bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-xl flex items-center gap-2 font-medium text-sm transition-colors"
-                      >
-                        <CheckCircle size={16} /> Tasdiqlash
-                      </button>
-                      <button
-                        onClick={() => handleApplication(app.id, "reject")}
-                        disabled={actionLoading === app.id}
-                        className="bg-red-50 hover:bg-red-100 text-red-700 px-4 py-2 rounded-xl flex items-center gap-2 font-medium text-sm transition-colors"
-                      >
-                        <XCircle size={16} /> Rad etish
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ======== ORG APPLICATIONS TAB ======== */}
       {activeTab === "org_applications" && (

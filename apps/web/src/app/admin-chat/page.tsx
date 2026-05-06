@@ -168,7 +168,7 @@ export default function AdminChatPage() {
       ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
           {messages.map((msg, i) => {
-            const isMe = msg.senderId === user?.userId;
+            const isMe = msg.senderId === user?.id;
             const showAvatar = i === messages.length - 1 || messages[i + 1]?.senderId !== msg.senderId;
             
             return (
