@@ -6,7 +6,6 @@ import { useAuthStore } from "../../lib/store";
 import api from "../../lib/api";
 import toast from "react-hot-toast";
 import { Send, ArrowLeft, Loader2, ShieldCheck, User as UserIcon } from "lucide-react";
-import { io, Socket } from "socket.io-client";
 
 type AdminChatMessage = {
   id: string;
@@ -23,7 +22,7 @@ type AdminChatMessage = {
 };
 
 export default function AdminChatPage() {
-  const { user, isAuthenticated, token } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
@@ -31,7 +30,6 @@ export default function AdminChatPage() {
   const [messages, setMessages] = useState<AdminChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const [socket, setSocket] = useState<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
