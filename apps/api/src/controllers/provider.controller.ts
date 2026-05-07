@@ -153,6 +153,9 @@ export const getMyApplication = async (req: Request, res: Response, next: NextFu
         }
       }
     });
+    if (!app) {
+      return res.status(404).json({ success: false, error: 'Ariza topilmadi', code: 'NOT_FOUND' });
+    }
     res.json({ success: true, data: app });
   } catch (error) {
     next(error);

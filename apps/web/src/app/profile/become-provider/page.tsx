@@ -13,6 +13,8 @@ type SkillItem = {
   description: string; portfolioImages: string[];
 };
 
+type DistrictInfo = { id: string; name: string; city: string; };
+
 const SERVICE_TYPE_LABELS: Record<string, string> = {
   ORGANIZED: "🏢 Tashkilotli — Mijoz mening joyimga keladi",
   UNORGANIZED: "🏠 Tashkilotsiz — Men mijozning uyiga boraman",
@@ -33,7 +35,7 @@ export default function BecomeProviderPage() {
 
   // Step 2
   const [districts, setDistricts] = useState<string[]>([]);
-  const [allDistricts, setAllDistricts] = useState<string[]>([]);
+  const [allDistricts, setAllDistricts] = useState<DistrictInfo[]>([]);
   const [dailyLimit, setDailyLimit] = useState("");
 
   // Step 3
@@ -57,7 +59,13 @@ export default function BecomeProviderPage() {
     if (!isAuthenticated) { router.push("/login"); return; }
     api.get("/catalog/districts").then(r => setAllDistricts(r.data.data || [])).catch(() => {});
     api.get("/catalog/categories").then(r => setCategories(r.data.data || [])).catch(() => {});
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
+
+  const groupedDistricts = allDistricts.reduce((acc, d) => {
+    if (!acc[d.city]) acc[d.city] = [];
+    acc[d.city].push(d);
+    return acc;
+  }, {} as Record<string, DistrictInfo[]>);
 
   const catSkills = categories.find(c => c.id === selCat)?.skills?.filter((s: any) => s.isActive) || [];
 
@@ -197,15 +205,47 @@ export default function BecomeProviderPage() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-5">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3">Qaysi tumanlarda xizmat ko'rsatasiz? *</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
-              {allDistricts.map(d => (
-                <button key={d} onClick={() => toggleDistrict(d)}
-                  className={`px-3 py-2 rounded-lg text-sm text-left border transition-all ${districts.includes(d) ? "bg-indigo-600 text-white border-indigo-600" : "bg-gray-50 text-gray-700 border-gray-200 hover:border-indigo-300"}`}>
-                  {districts.includes(d) && "✓ "}{d}
-                </button>
+            <div className="space-y-5 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              {Object.entries(groupedDistricts).map(([city, dists]) => (
+                <div key={city}>
+                  <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-1.5">
+                    🏙 {city}
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {dists.map(d => (
+                      <button key={d.id} onClick={() => toggleDistrict(d.name)}
+                        className={`px-3 py-2.5 rounded-xl text-sm text-left border transition-all ${districts.includes(d.name) ? "bg-indigo-50 border-indigo-500 shadow-sm" : "bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50"}`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-4 h-4 rounded border flex flex-shrink-0 items-center justify-center transition-colors ${districts.includes(d.name) ? "bg-indigo-600 border-indigo-600" : "border-gray-300 bg-white"}`}>
+                            {districts.includes(d.name) && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                          <span className={`truncate ${districts.includes(d.name) ? "text-indigo-900 font-medium" : "text-gray-700"}`}>{d.name}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
+              {allDistricts.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-sm">Tumanlar yuklanmoqda...</div>
+              )}
             </div>
-            {districts.length > 0 && <p className="text-xs text-indigo-600 mt-2">Tanlangan: {districts.length} ta</p>}
+            
+            {districts.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tanlangan: {districts.length} ta</p>
+                <div className="flex flex-wrap gap-2">
+                  {districts.map(d => (
+                    <div key={d} className="flex items-center gap-1 bg-indigo-100 text-indigo-700 pl-3 pr-1 py-1 rounded-full text-xs font-semibold border border-indigo-200 shadow-sm">
+                      <span>{d}</span>
+                      <button onClick={() => toggleDistrict(d)} className="hover:bg-indigo-200 p-1 rounded-full text-indigo-500 hover:text-indigo-800 transition-colors ml-1">
+                        <X size={12} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Kunlik max buyurtmalar (ixtiyoriy)</label>

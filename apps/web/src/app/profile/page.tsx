@@ -20,6 +20,9 @@ export default function Profile() {
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
 
+  // null = yuklanmagan, false = ariza yo'q, object = ariza mavjud
+  const [application, setApplication] = useState<Record<string, any> | null | false>(null);
+
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [orgDesc, setOrgDesc] = useState("");
@@ -35,6 +38,7 @@ export default function Profile() {
       return;
     }
     fetchProfile();
+    fetchMyApplication();
     api.get("/organizations").then(r => setOrgsList(r.data.data)).catch(console.error);
   }, [isAuthenticated, router]);
 
@@ -51,6 +55,24 @@ export default function Profile() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMyApplication = async () => {
+    try {
+      const res = await api.get("/provider/my-application");
+      if (res.data.success) {
+        setApplication(res.data.data);
+      } else {
+        setApplication(false);
+      }
+    } catch (error) {
+      const err = error as AxiosError<{ code: string }>;
+      if (err.response?.status === 404) {
+        setApplication(false); // ariza yo'q
+      } else {
+        setApplication(false);
+      }
     }
   };
 
@@ -245,8 +267,10 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Provider Section or CTA */}
-      {profile.role === "USER" && (!profile.providerApplications || profile.providerApplications.length === 0) && !profile.providerProfile && (
+      {/* ─── Provider Status Section ─────────────────────────────────── */}
+
+      {/* 1. USER + ariza yo'q → CTA */}
+      {profile.role === "USER" && application === false && (
         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-8 rounded-3xl border border-emerald-100">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
@@ -257,31 +281,56 @@ export default function Profile() {
               href="/profile/become-provider"
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md whitespace-nowrap"
             >
-              Ariza topshirish
+              🚀 Provayder bo'lish
             </Link>
           </div>
         </div>
       )}
 
-      {profile.providerApplications && profile.providerApplications.length > 0 && (
+      {/* 2. Ariza PENDING */}
+      {application && (application as Record<string, any>).status === "PENDING" && (
         <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-2xl text-center">
-          <h3 className="text-lg font-bold text-yellow-800 mb-2">Ariza ko'rib chiqilmoqda</h3>
+          <div className="text-3xl mb-2">🟡</div>
+          <h3 className="text-lg font-bold text-yellow-800 mb-1">Arizangiz ko'rib chiqilmoqda...</h3>
           <p className="text-yellow-700 text-sm max-w-md mx-auto">
-            Sizning provayder bo'lish arizangiz adminlar tomonidan ko'rib chiqilmoqda. 
+            Sizning provayder bo'lish arizangiz adminlar tomonidan ko'rib chiqilmoqda.
             Natija bo'yicha xabarnoma olasiz.
           </p>
         </div>
       )}
 
-      {profile.role === "PROVIDER" && profile.providerProfile && profile.providerProfile.status === "REJECTED" && (
+      {/* 3. Ariza REJECTED */}
+      {application && (application as Record<string, any>).status === "REJECTED" && (
         <div className="bg-red-50 border border-red-200 p-6 rounded-2xl">
-          <h3 className="text-lg font-bold text-red-800 mb-2">Ariza rad etildi</h3>
-          <p className="text-red-700 text-sm mb-4">Sabab: {providerProfile.rejectionNote || "Ko'rsatilmagan"}</p>
+          <div className="text-3xl mb-2">❌</div>
+          <h3 className="text-lg font-bold text-red-800 mb-2">Arizangiz rad etildi</h3>
+          <p className="text-red-700 text-sm mb-4">
+            Sabab: {(application as Record<string, any>).rejectionNote || "Ko'rsatilmagan"}
+          </p>
           <Link
             href="/profile/become-provider"
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
-            Qayta ariza topshirish
+            Qayta ariza berish
+          </Link>
+        </div>
+      )}
+
+      {/* 4. PROVIDER → Badge + Dashboard tugmasi */}
+      {profile.role === "PROVIDER" && (
+        <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">✅</div>
+            <div>
+              <span className="inline-block bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-1">Provayder</span>
+              <p className="text-emerald-800 text-sm">Siz tasdiqlangan provaydersiz. Dashboard orqali xizmatlaringizni boshqaring.</p>
+            </div>
+          </div>
+          <Link
+            href="/provider/dashboard"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md whitespace-nowrap text-sm"
+          >
+            Provayder dashboard →
           </Link>
         </div>
       )}
