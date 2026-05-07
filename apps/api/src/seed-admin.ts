@@ -13,6 +13,7 @@ async function main() {
       email: 'admin@halqil.uz',
       password: hash,
       role: 'SUPER_ADMIN',
+      walletId: '09876543210987654321',
     },
   });
   console.log('SUCCESS:', user.email, '|', user.role);
