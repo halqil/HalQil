@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\abdug\\\\proekt\\\\HalQil\\\\.claude\\\\worktrees\\\\unruffled-ride-2b59c2\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "PowerShell($env:GH_TOKEN; $env:GITHUB_TOKEN; [System.Environment]::GetEnvironmentVariable\\(\"GH_TOKEN\", \"User\"\\); [System.Environment]::GetEnvironmentVariable\\(\"GITHUB_TOKEN\", \"User\"\\))"
+    ]
+  }
+}
