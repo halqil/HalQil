@@ -16,10 +16,12 @@ export const validate = (schema: AnyZodObject) => {
       return next();
     } catch (error) {
       if (error instanceof ZodError) {
+        const firstError = error.errors[0];
         return res.status(400).json({
           success: false,
-          error: "Validatsiya xatosi",
+          error: firstError?.message || "Validatsiya xatosi",
           code: "VALIDATION_ERROR",
+          field: firstError?.path?.join('.') || '',
           details: error.errors
         });
       }
