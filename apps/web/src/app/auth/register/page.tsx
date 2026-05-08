@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import api from '@/lib/api';
 import { Check, AlertCircle, Eye, EyeOff, Loader2, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
