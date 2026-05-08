@@ -13,7 +13,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     logout();
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   const [unreadCount, setUnreadCount] = useState(0);
@@ -111,10 +111,10 @@ export default function Navbar() {
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <Link href="/login" className="px-4 py-2 text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors">
+            <Link href="/auth/login" className="px-4 py-2 text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors">
               Kirish
             </Link>
-            <Link href="/register" className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all">
+            <Link href="/auth/register" className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all">
               Ro'yxatdan o'tish
             </Link>
           </div>
