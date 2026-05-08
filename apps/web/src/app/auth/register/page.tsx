@@ -26,6 +26,8 @@ function formatPhone(value: string): string {
   return `+998 ${local.slice(0, 2)} ${local.slice(2, 5)}-${local.slice(5, 7)}-${local.slice(7, 9)}`;
 }
 
+const NAME_REGEX = /^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/;
+
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -44,68 +46,85 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [phoneStatus, setPhoneStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+
+  // Computed validity
+  const isFirstNameValid = firstName.trim().length >= 2 && NAME_REGEX.test(firstName.trim());
+  const isLastNameValid = lastName.trim().length >= 2 && NAME_REGEX.test(lastName.trim());
+  const phoneDigits = phone.replace(/\D/g, '');
+  const phoneLocal = phoneDigits.startsWith('998') ? phoneDigits.slice(3) : phoneDigits;
+  const isPhoneFilled = phoneLocal.length >= 9;
+  const isPhoneValid = isPhoneFilled && phoneStatus !== 'taken';
+
+  const step1Valid =
+    isFirstNameValid &&
+    isLastNameValid &&
+    isPhoneValid &&
+    phoneStatus !== 'checking';
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(formatPhone(e.target.value));
     setPhoneStatus('idle');
+    setErrors((p) => { const x = { ...p }; delete x.phone; return x; });
   };
 
   const handlePhoneBlur = async () => {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 12) return;
-    const raw = '+998' + (digits.startsWith('998') ? digits.slice(3) : digits);
+    setTouched((p) => ({ ...p, phone: true }));
+    if (!isPhoneFilled) {
+      setErrors((p) => ({ ...p, phone: "Telefon raqam to'liq kiritilmagan" }));
+      return;
+    }
+    const raw = '+998' + phoneLocal;
     setPhoneStatus('checking');
     try {
       const res = await api.get(`/auth/check-phone?phone=${encodeURIComponent(raw)}`);
-      setPhoneStatus(res.data.data.available ? 'available' : 'taken');
-      if (!res.data.data.available) {
-        setErrors((p) => ({ ...p, phone: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" }));
+      if (res.data.data.available) {
+        setPhoneStatus('available');
+        setErrors((p) => { const x = { ...p }; delete x.phone; return x; });
       } else {
-        setErrors((p) => { const e = { ...p }; delete e.phone; return e; });
+        setPhoneStatus('taken');
+        setErrors((p) => ({ ...p, phone: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" }));
       }
-    } catch { setPhoneStatus('idle'); }
+    } catch {
+      setPhoneStatus('idle');
+    }
   };
 
   useEffect(() => {
-    if (username.length < 3) { setUsernameStatus('idle'); return; }
+    if (username.length < 3) {
+      setUsernameStatus('idle');
+      return;
+    }
     setUsernameStatus('checking');
     const t = setTimeout(async () => {
       try {
-        const res = await api.get(`/auth/check-username?username=${username}`);
-        setUsernameStatus(res.data.data.available ? 'available' : 'taken');
-        if (!res.data.data.available) {
-          setErrors((p) => ({ ...p, username: 'Bu username band, boshqa tanlang' }));
+        const res = await api.get(`/auth/check-username?username=${encodeURIComponent(username)}`);
+        if (res.data.data.available) {
+          setUsernameStatus('available');
+          setErrors((p) => { const x = { ...p }; delete x.username; return x; });
         } else {
-          setErrors((p) => { const e = { ...p }; delete e.username; return e; });
+          setUsernameStatus('taken');
+          setErrors((p) => ({ ...p, username: 'Bu username band, boshqa tanlang' }));
         }
-      } catch { setUsernameStatus('idle'); }
+      } catch {
+        setUsernameStatus('idle');
+      }
     }, 500);
     return () => clearTimeout(t);
   }, [username]);
 
-  const validateStep1 = () => {
-    const e: Record<string, string> = {};
-    if (firstName.trim().length < 2) e.firstName = "Ism kamida 2 harf bo'lishi kerak";
-    else if (!/^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/.test(firstName)) e.firstName = "Ism faqat harflardan iborat bo'lishi kerak";
-    if (lastName.trim().length < 2) e.lastName = "Familya kamida 2 harf bo'lishi kerak";
-    else if (!/^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/.test(lastName)) e.lastName = "Familya faqat harflardan iborat bo'lishi kerak";
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 12) e.phone = "Telefon raqam to'liq kiritilmagan";
-    if (phoneStatus === 'taken') e.phone = "Bu telefon raqam allaqachon ro'yxatdan o'tgan";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   const validateStep2 = () => {
     const e: Record<string, string> = {};
     if (username.length < 3) e.username = "Username kamida 3 belgi bo'lishi kerak";
+    else if (!/^[a-z0-9][a-z0-9_.]*[a-z0-9]$|^[a-z0-9]{3}$/.test(username))
+      e.username = "Faqat a-z, 0-9, _ va . ishlatish mumkin";
     if (usernameStatus === 'taken') e.username = 'Bu username band';
     if (password.length < 8) e.password = "Parol kamida 8 belgi bo'lishi kerak";
-    else if (!/(?=.*[a-z])/.test(password)) e.password = "Kamida 1 ta kichik harf bo'lishi kerak";
-    else if (!/(?=.*[A-Z])/.test(password)) e.password = "Kamida 1 ta katta harf bo'lishi kerak";
-    else if (!/(?=.*\d)/.test(password)) e.password = "Kamida 1 ta raqam bo'lishi kerak";
+    else if (!/(?=.*[a-z])/.test(password)) e.password = "Kamida 1 ta kichik harf kerak";
+    else if (!/(?=.*[A-Z])/.test(password)) e.password = "Kamida 1 ta katta harf kerak";
+    else if (!/(?=.*\d)/.test(password)) e.password = "Kamida 1 ta raqam kerak";
     if (password !== confirmPassword) e.confirmPassword = 'Parollar mos emas';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -115,8 +134,7 @@ export default function RegisterPage() {
     if (!validateStep2()) return;
     setLoading(true);
     try {
-      const digits = phone.replace(/\D/g, '');
-      const formattedPhone = '+998' + (digits.startsWith('998') ? digits.slice(3) : digits);
+      const formattedPhone = '+998' + phoneLocal;
       const res = await api.post('/auth/register', {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -129,17 +147,27 @@ export default function RegisterPage() {
       localStorage.setItem('user', JSON.stringify(res.data.data.user));
       router.push('/');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Xatolik yuz berdi';
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        'Xatolik yuz berdi';
       setErrors({ general: msg });
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSupportSubmit = async () => {
     if (!supportMsg.trim()) return;
     try {
-      await api.post('/support/contact', { message: supportMsg, phone: supportPhone, page: 'register' });
+      await api.post('/support/contact', {
+        message: supportMsg,
+        phone: supportPhone || undefined,
+        page: 'register',
+      });
       setSupportSent(true);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   };
 
   const strength = getPasswordStrength(password);
@@ -147,6 +175,8 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+
+        {/* Progress bar */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-500">
@@ -155,7 +185,10 @@ export default function RegisterPage() {
             <span className="text-sm text-gray-400">{step}/2</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: step === 1 ? '50%' : '100%' }} />
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+              style={{ width: step === 1 ? '50%' : '100%' }}
+            />
           </div>
         </div>
 
@@ -164,53 +197,125 @@ export default function RegisterPage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Salom! Tanishamiz 👋</h1>
             <p className="text-gray-500 mb-6">Ismingiz va telefon raqamingizni kiriting</p>
 
+            {/* Ism */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Ismingiz</label>
-              <input
-                type="text" value={firstName}
-                onChange={(e) => { setFirstName(e.target.value); setErrors((p) => { const x = { ...p }; delete x.firstName; return x; }); }}
-                onBlur={() => {
-                  if (firstName.trim().length < 2) setErrors((p) => ({ ...p, firstName: "Ism kamida 2 harf bo'lishi kerak" }));
-                  else if (!/^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/.test(firstName)) setErrors((p) => ({ ...p, firstName: "Ism faqat harflardan iborat bo'lishi kerak" }));
-                }}
-                placeholder="Masalan: Abdug'afur"
-                className={`w-full px-4 py-3 rounded-xl border ${errors.firstName ? 'border-red-400 bg-red-50' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
-              />
-              {errors.firstName && <p className="text-red-500 text-xs mt-1">❌ {errors.firstName}</p>}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    setErrors((p) => { const x = { ...p }; delete x.firstName; return x; });
+                  }}
+                  onBlur={() => {
+                    setTouched((p) => ({ ...p, firstName: true }));
+                    if (firstName.trim().length < 2)
+                      setErrors((p) => ({ ...p, firstName: "Ism kamida 2 harf bo'lishi kerak" }));
+                    else if (!NAME_REGEX.test(firstName.trim()))
+                      setErrors((p) => ({ ...p, firstName: "Ism faqat harflardan iborat bo'lishi kerak" }));
+                    else
+                      setErrors((p) => { const x = { ...p }; delete x.firstName; return x; });
+                  }}
+                  placeholder="Masalan: Abdug'afur"
+                  className={`w-full px-4 py-3 pr-10 rounded-xl border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.firstName
+                      ? 'border-red-400 bg-red-50'
+                      : isFirstNameValid && touched.firstName
+                      ? 'border-green-400 bg-green-50'
+                      : 'border-gray-300'
+                  }`}
+                />
+                {isFirstNameValid && touched.firstName && (
+                  <span className="absolute right-3 top-3 text-green-500">✅</span>
+                )}
+              </div>
+              {errors.firstName && (
+                <p className="text-red-500 text-xs mt-1">❌ {errors.firstName}</p>
+              )}
             </div>
 
+            {/* Familya */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Familyangiz</label>
-              <input
-                type="text" value={lastName}
-                onChange={(e) => { setLastName(e.target.value); setErrors((p) => { const x = { ...p }; delete x.lastName; return x; }); }}
-                onBlur={() => {
-                  if (lastName.trim().length < 2) setErrors((p) => ({ ...p, lastName: "Familya kamida 2 harf bo'lishi kerak" }));
-                  else if (!/^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/.test(lastName)) setErrors((p) => ({ ...p, lastName: "Familya faqat harflardan iborat bo'lishi kerak" }));
-                }}
-                placeholder="Masalan: Toshmatov"
-                className={`w-full px-4 py-3 rounded-xl border ${errors.lastName ? 'border-red-400 bg-red-50' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
-              />
-              {errors.lastName && <p className="text-red-500 text-xs mt-1">❌ {errors.lastName}</p>}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => {
+                    setLastName(e.target.value);
+                    setErrors((p) => { const x = { ...p }; delete x.lastName; return x; });
+                  }}
+                  onBlur={() => {
+                    setTouched((p) => ({ ...p, lastName: true }));
+                    if (lastName.trim().length < 2)
+                      setErrors((p) => ({ ...p, lastName: "Familya kamida 2 harf bo'lishi kerak" }));
+                    else if (!NAME_REGEX.test(lastName.trim()))
+                      setErrors((p) => ({ ...p, lastName: "Familya faqat harflardan iborat bo'lishi kerak" }));
+                    else
+                      setErrors((p) => { const x = { ...p }; delete x.lastName; return x; });
+                  }}
+                  placeholder="Masalan: Toshmatov"
+                  className={`w-full px-4 py-3 pr-10 rounded-xl border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.lastName
+                      ? 'border-red-400 bg-red-50'
+                      : isLastNameValid && touched.lastName
+                      ? 'border-green-400 bg-green-50'
+                      : 'border-gray-300'
+                  }`}
+                />
+                {isLastNameValid && touched.lastName && (
+                  <span className="absolute right-3 top-3 text-green-500">✅</span>
+                )}
+              </div>
+              {errors.lastName && (
+                <p className="text-red-500 text-xs mt-1">❌ {errors.lastName}</p>
+              )}
             </div>
 
+            {/* Telefon */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">Telefon raqam</label>
               <div className="relative">
                 <input
-                  type="tel" value={phone}
-                  onChange={handlePhoneChange} onBlur={handlePhoneBlur}
-                  placeholder="+998 90 123-45-67" maxLength={17}
-                  className={`w-full px-4 py-3 rounded-xl border ${errors.phone ? 'border-red-400 bg-red-50' : phoneStatus === 'available' ? 'border-green-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
+                  type="tel"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  onBlur={handlePhoneBlur}
+                  placeholder="+998 90 123-45-67"
+                  maxLength={17}
+                  className={`w-full px-4 py-3 pr-10 rounded-xl border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.phone
+                      ? 'border-red-400 bg-red-50'
+                      : phoneStatus === 'available'
+                      ? 'border-green-400 bg-green-50'
+                      : 'border-gray-300'
+                  }`}
                 />
-                {phoneStatus === 'checking' && <span className="absolute right-3 top-3 text-gray-400 text-sm">🔄</span>}
-                {phoneStatus === 'available' && <span className="absolute right-3 top-3 text-green-500">✅</span>}
-                {phoneStatus === 'taken' && <span className="absolute right-3 top-3 text-red-500">❌</span>}
+                {phoneStatus === 'checking' && (
+                  <span className="absolute right-3 top-3 text-gray-400 text-sm">🔄</span>
+                )}
+                {phoneStatus === 'available' && (
+                  <span className="absolute right-3 top-3 text-green-500">✅</span>
+                )}
+                {phoneStatus === 'taken' && (
+                  <span className="absolute right-3 top-3 text-red-500">❌</span>
+                )}
               </div>
-              {errors.phone && <p className="text-red-500 text-xs mt-1">❌ {errors.phone}</p>}
+              {errors.phone && (
+                <p className="text-red-500 text-xs mt-1">❌ {errors.phone}</p>
+              )}
             </div>
 
-            <button onClick={() => { if (validateStep1()) setStep(2); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition">
+            <button
+              onClick={() => { if (step1Valid) setStep(2); }}
+              disabled={!step1Valid}
+              className={`w-full font-semibold py-3 rounded-xl transition ${
+                step1Valid
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
               Keyingi →
             </button>
           </>
@@ -225,113 +330,259 @@ export default function RegisterPage() {
               </div>
             )}
 
+            {/* Username */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
               <div className="relative">
-                <span className="absolute left-4 top-3 text-gray-400 font-medium">@</span>
+                <span className="absolute left-4 top-3.5 text-gray-400 font-medium select-none">@</span>
                 <input
-                  type="text" value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    const val = e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '');
+                    setUsername(val);
+                    setErrors((p) => { const x = { ...p }; delete x.username; return x; });
+                  }}
                   placeholder="masalan: abdug_001"
-                  className={`w-full pl-8 pr-24 py-3 rounded-xl border ${errors.username || usernameStatus === 'taken' ? 'border-red-400 bg-red-50' : usernameStatus === 'available' ? 'border-green-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
+                  className={`w-full pl-8 pr-32 py-3 rounded-xl border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.username || usernameStatus === 'taken'
+                      ? 'border-red-400 bg-red-50'
+                      : usernameStatus === 'available'
+                      ? 'border-green-400 bg-green-50'
+                      : 'border-gray-300'
+                  }`}
                 />
-                {usernameStatus === 'checking' && <span className="absolute right-3 top-3 text-gray-400 text-sm">🔄</span>}
-                {usernameStatus === 'available' && <span className="absolute right-3 top-3 text-green-500 text-sm">✅ Bo&apos;sh</span>}
-                {usernameStatus === 'taken' && <span className="absolute right-3 top-3 text-red-500 text-sm">❌ Band</span>}
+                {usernameStatus === 'checking' && (
+                  <span className="absolute right-3 top-3 text-gray-400 text-xs">🔄 Tekshirilmoqda...</span>
+                )}
+                {usernameStatus === 'available' && (
+                  <span className="absolute right-3 top-3 text-green-600 text-sm font-medium">✅ Bo&apos;sh</span>
+                )}
+                {usernameStatus === 'taken' && (
+                  <span className="absolute right-3 top-3 text-red-500 text-sm font-medium">❌ Band</span>
+                )}
               </div>
-              {errors.username && <p className="text-red-500 text-xs mt-1">❌ {errors.username}</p>}
+              {errors.username && (
+                <p className="text-red-500 text-xs mt-1">❌ {errors.username}</p>
+              )}
             </div>
 
+            {/* Parol */}
             <div className="mb-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Parol</label>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'} value={password}
-                  onChange={(e) => { setPassword(e.target.value); setErrors((p) => { const x = { ...p }; delete x.password; return x; }); }}
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setErrors((p) => { const x = { ...p }; delete x.password; return x; });
+                  }}
+                  onBlur={() => {
+                    if (password.length < 8)
+                      setErrors((p) => ({ ...p, password: "Parol kamida 8 belgi bo'lishi kerak" }));
+                    else if (!/(?=.*[A-Z])/.test(password))
+                      setErrors((p) => ({ ...p, password: "Kamida 1 ta katta harf kerak" }));
+                    else if (!/(?=.*\d)/.test(password))
+                      setErrors((p) => ({ ...p, password: "Kamida 1 ta raqam kerak" }));
+                  }}
                   placeholder="Kamida 8 belgi, katta/kichik harf va raqam"
-                  className={`w-full px-4 py-3 pr-10 rounded-xl border ${errors.password ? 'border-red-400 bg-red-50' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
+                  className={`w-full px-4 py-3 pr-10 rounded-xl border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.password ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                  }`}
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
                   {showPassword ? '🙈' : '👁'}
                 </button>
               </div>
-              {errors.password && <p className="text-red-500 text-xs mt-1">❌ {errors.password}</p>}
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">❌ {errors.password}</p>
+              )}
             </div>
 
+            {/* Parol kuchi */}
             {password.length > 0 && (
               <div className="mb-4">
                 <div className="flex gap-1 mb-1">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= strength.score ? strength.color : 'bg-gray-200'} transition-all`} />
+                    <div
+                      key={i}
+                      className={`h-1.5 flex-1 rounded-full transition-all ${
+                        i <= strength.score ? strength.color : 'bg-gray-200'
+                      }`}
+                    />
                   ))}
                 </div>
-                <p className={`text-xs ${strength.score <= 2 ? 'text-red-500' : strength.score <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>{strength.label}</p>
+                <p
+                  className={`text-xs ${
+                    strength.score <= 2
+                      ? 'text-red-500'
+                      : strength.score <= 3
+                      ? 'text-yellow-600'
+                      : 'text-green-600'
+                  }`}
+                >
+                  {strength.label}
+                </p>
               </div>
             )}
 
+            {/* Parol tasdiqi */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">Parolni tasdiqlang</label>
               <div className="relative">
                 <input
-                  type={showConfirm ? 'text' : 'password'} value={confirmPassword}
-                  onChange={(e) => { setConfirmPassword(e.target.value); setErrors((p) => { const x = { ...p }; delete x.confirmPassword; return x; }); }}
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setErrors((p) => { const x = { ...p }; delete x.confirmPassword; return x; });
+                  }}
                   placeholder="Parolni qayta kiriting"
-                  className={`w-full px-4 py-3 pr-10 rounded-xl border ${errors.confirmPassword ? 'border-red-400 bg-red-50' : confirmPassword && password === confirmPassword ? 'border-green-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
+                  className={`w-full px-4 py-3 pr-10 rounded-xl border transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.confirmPassword
+                      ? 'border-red-400 bg-red-50'
+                      : confirmPassword && password === confirmPassword
+                      ? 'border-green-400 bg-green-50'
+                      : 'border-gray-300'
+                  }`}
                 />
-                <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-3 text-gray-400">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
                   {showConfirm ? '🙈' : '👁'}
                 </button>
               </div>
-              {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">❌ {errors.confirmPassword}</p>}
-              {confirmPassword && password === confirmPassword && <p className="text-green-500 text-xs mt-1">✅ Parollar mos keldi</p>}
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-xs mt-1">❌ {errors.confirmPassword}</p>
+              )}
+              {confirmPassword && password === confirmPassword && !errors.confirmPassword && (
+                <p className="text-green-500 text-xs mt-1">✅ Parollar mos keldi</p>
+              )}
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="flex-1 border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition">← Orqaga</button>
-              <button onClick={handleSubmit} disabled={loading || usernameStatus === 'taken'}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                {loading ? <span className="animate-spin">⏳</span> : null}
+              <button
+                onClick={() => setStep(1)}
+                className="flex-1 border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition"
+              >
+                ← Orqaga
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading || usernameStatus === 'taken' || usernameStatus === 'checking'}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading && (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
                 {loading ? 'Yuklanmoqda...' : "Ro'yxatdan o'tish"}
               </button>
             </div>
           </>
         )}
 
+        {/* Separator */}
         <div className="flex items-center gap-3 my-5">
           <div className="flex-1 h-px bg-gray-200" />
           <span className="text-gray-400 text-sm">yoki</span>
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        <button onClick={() => setShowSupport(true)} className="w-full border border-gray-200 text-gray-600 py-2.5 rounded-xl hover:bg-gray-50 transition text-sm flex items-center justify-center gap-2">
+        {/* Yordam tugmasi */}
+        <button
+          onClick={() => {
+            setShowSupport(true);
+            setSupportSent(false);
+            setSupportMsg('');
+            setSupportPhone('');
+          }}
+          className="w-full border border-gray-200 text-gray-600 py-2.5 rounded-xl hover:bg-gray-50 transition text-sm flex items-center justify-center gap-2"
+        >
           🛟 Yordam kerakmi? Admin bilan bog&apos;laning
         </button>
 
+        {/* Login link */}
         <p className="text-center text-sm text-gray-500 mt-4">
           Allaqachon hisobingiz bormi?{' '}
-          <Link href="/auth/login" className="text-blue-600 font-medium hover:underline">Kirish →</Link>
+          <Link href="/auth/login" className="text-blue-600 font-medium hover:underline">
+            Kirish →
+          </Link>
         </p>
       </div>
 
+      {/* Support modali */}
       {showSupport && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold mb-1">Qo&apos;llab-quvvatlash 🛟</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Qo&apos;llab-quvvatlash 🛟</h3>
+              <button
+                onClick={() => setShowSupport(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 transition"
+              >
+                ✕
+              </button>
+            </div>
             <p className="text-gray-500 text-sm mb-4">Muammoingizni yozing, tez orada javob beramiz</p>
+
             {supportSent ? (
               <div className="text-center py-6">
-                <p className="text-2xl mb-2">✅</p>
-                <p className="font-medium text-green-700">Xabaringiz qabul qilindi!</p>
+                <p className="text-4xl mb-2">✅</p>
+                <p className="font-semibold text-green-700">Xabaringiz qabul qilindi!</p>
                 <p className="text-gray-500 text-sm mt-1">Tez orada bog&apos;lanamiz</p>
-                <button onClick={() => { setShowSupport(false); setSupportSent(false); setSupportMsg(''); setSupportPhone(''); }} className="mt-4 text-blue-600 text-sm">Yopish</button>
+                <button
+                  onClick={() => { setShowSupport(false); setSupportSent(false); }}
+                  className="mt-4 text-blue-600 text-sm hover:underline"
+                >
+                  Yopish
+                </button>
               </div>
             ) : (
               <>
-                <textarea value={supportMsg} onChange={(e) => setSupportMsg(e.target.value)} placeholder="Muammoingizni batafsil yozing..." rows={4} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" />
-                <input type="tel" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} placeholder="Telefon raqamingiz (ixtiyoriy)" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4" />
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Muammoingizni yozing:</label>
+                  <textarea
+                    value={supportMsg}
+                    onChange={(e) => setSupportMsg(e.target.value)}
+                    placeholder="Muammoingizni batafsil yozing..."
+                    rows={4}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefon raqamingiz:</label>
+                  <input
+                    type="tel"
+                    value={supportPhone}
+                    onChange={(e) => setSupportPhone(e.target.value)}
+                    placeholder="+998 90 123-45-67 (ixtiyoriy)"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setShowSupport(false)} className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-xl text-sm hover:bg-gray-50">Bekor qilish</button>
-                  <button onClick={handleSupportSubmit} disabled={!supportMsg.trim()} className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-sm disabled:opacity-50">Yuborish</button>
+                  <button
+                    onClick={() => setShowSupport(false)}
+                    className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-xl text-sm hover:bg-gray-50 transition"
+                  >
+                    Bekor qilish
+                  </button>
+                  <button
+                    onClick={handleSupportSubmit}
+                    disabled={!supportMsg.trim()}
+                    className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-sm disabled:opacity-50 hover:bg-blue-700 transition"
+                  >
+                    Yuborish
+                  </button>
                 </div>
               </>
             )}

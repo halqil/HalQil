@@ -4,9 +4,27 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 
+function formatPhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  const local = digits.startsWith('998') ? digits.slice(3) : digits;
+  if (local.length === 0) return '';
+  if (local.length <= 2) return `+998 ${local}`;
+  if (local.length <= 5) return `+998 ${local.slice(0, 2)} ${local.slice(2)}`;
+  if (local.length <= 7) return `+998 ${local.slice(0, 2)} ${local.slice(2, 5)}-${local.slice(5)}`;
+  return `+998 ${local.slice(0, 2)} ${local.slice(2, 5)}-${local.slice(5, 7)}-${local.slice(7, 9)}`;
+}
+
+function detectLoginType(value: string): { icon: string; hint: string } {
+  if (!value) return { icon: '', hint: '' };
+  const cleaned = value.replace(/\s/g, '');
+  if (/^[\+0-9]/.test(cleaned)) return { icon: '📱', hint: 'Telefon raqam' };
+  if (value.includes('@')) return { icon: '📧', hint: 'Email' };
+  return { icon: '👤', hint: 'Username' };
+}
+
 export default function LoginPage() {
   const router = useRouter();
-  const [login, setLogin] = useState('');
+  const [loginInput, setLoginInput] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -17,43 +35,40 @@ export default function LoginPage() {
   const [supportSent, setSupportSent] = useState(false);
   const [supportLoading, setSupportLoading] = useState(false);
 
-  // Login inputi o'zgarishi
+  const loginType = detectLoginType(loginInput);
+
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
-    setLogin(value);
     setError('');
-  };
 
-  // Login turini aniqlash
-  const getLoginType = (): { icon: string; hint: string } => {
-    if (!login) return { icon: '', hint: '' };
-    const cleaned = login.replace(/\s/g, '');
-    if (/^[\+0-9]/.test(cleaned) || /^[0-9]{9}/.test(cleaned)) {
-      return { icon: '📱', hint: 'Telefon raqam' };
+    const cleaned = value.replace(/\s/g, '');
+    // Auto-format phone number
+    if (/^[\+0-9]/.test(cleaned)) {
+      value = formatPhoneInput(value);
+    } else if (!value.includes('@')) {
+      // Username: force lowercase
+      value = value.toLowerCase();
     }
-    if (login.includes('@') && login.includes('.')) {
-      return { icon: '📧', hint: 'Email' };
-    }
-    return { icon: '👤', hint: 'Username' };
-  };
 
-  const loginType = getLoginType();
+    setLoginInput(value);
+  };
 
   const handleSubmit = async () => {
-    if (!login.trim() || !password.trim()) {
+    if (!loginInput.trim() || !password.trim()) {
       setError('Login va parol kiritish majburiy');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      // Telefon raqam normalizatsiyasi
-      let loginValue = login.trim();
+      let loginValue = loginInput.trim();
+
+      // Normalize phone number
       const digits = loginValue.replace(/\D/g, '');
       if (digits.length === 9) {
         loginValue = '+998' + digits;
-      } else if (digits.length === 12 && loginValue.startsWith('+')) {
-        // already formatted
+      } else if (digits.length === 12 && !loginValue.startsWith('+')) {
+        loginValue = '+' + digits;
       }
 
       const res = await api.post('/auth/login', { login: loginValue, password });
@@ -62,9 +77,8 @@ export default function LoginPage() {
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
 
-      const role = user.role;
-      if (role === 'SUPER_ADMIN') router.push('/admin');
-      else if (role === 'PROVIDER') router.push('/provider/dashboard');
+      if (user.role === 'SUPER_ADMIN') router.push('/admin');
+      else if (user.role === 'PROVIDER') router.push('/provider/dashboard');
       else router.push('/');
     } catch (err: unknown) {
       setError(
@@ -96,7 +110,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-fadeIn"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8"
         style={{ boxShadow: '0 25px 50px -12px rgba(59,130,246,0.15), 0 0 0 1px rgba(59,130,246,0.05)' }}
       >
         {/* Logo */}
@@ -110,7 +124,6 @@ export default function LoginPage() {
           <p className="text-gray-400 text-xs mt-0.5">Mahalliy xizmatlar platformasi</p>
         </div>
 
-        {/* Sarlavha */}
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Xush kelibsiz! 👋</h2>
         <p className="text-gray-500 text-sm mb-6">Hisobingizga kiring</p>
 
@@ -129,15 +142,16 @@ export default function LoginPage() {
           </label>
           <div className="relative">
             <input
-              id="login-input"
               type="text"
-              value={login}
+              value={loginInput}
               onChange={handleLoginChange}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               placeholder="+998901234567 yoki @username"
               autoComplete="username"
-              className={`w-full px-4 py-3.5 pr-28 rounded-2xl border-2 transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 ${
-                error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white'
+              className={`w-full px-4 py-3.5 pr-28 rounded-2xl border-2 transition-all text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 ${
+                error
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white'
               }`}
             />
             {loginType.hint && (
@@ -156,15 +170,16 @@ export default function LoginPage() {
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">Parol</label>
           <div className="relative">
             <input
-              id="password-input"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => { setPassword(e.target.value); setError(''); }}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               placeholder="Parolingizni kiriting"
               autoComplete="current-password"
-              className={`w-full px-4 py-3.5 pr-12 rounded-2xl border-2 transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 ${
-                error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white'
+              className={`w-full px-4 py-3.5 pr-12 rounded-2xl border-2 transition-all text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 ${
+                error
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:bg-white'
               }`}
             />
             <button
@@ -179,10 +194,9 @@ export default function LoginPage() {
 
         {/* Kirish tugmasi */}
         <button
-          id="login-btn"
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3.5 rounded-2xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300 active:scale-[0.99]"
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3.5 rounded-2xl transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300 active:scale-[0.99]"
         >
           {loading ? (
             <>
@@ -206,14 +220,13 @@ export default function LoginPage() {
 
         {/* Yordam tugmasi */}
         <button
-          id="support-btn"
           onClick={() => { setShowSupport(true); setSupportSent(false); setSupportMsg(''); setSupportPhone(''); }}
           className="w-full border-2 border-gray-200 text-gray-600 py-3 rounded-2xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-medium flex items-center justify-center gap-2"
         >
           🛟 Yordam kerakmi? Admin bilan bog&apos;laning
         </button>
 
-        {/* Register havola */}
+        {/* Register link */}
         <p className="text-center text-sm text-gray-500 mt-5">
           Hisobingiz yo&apos;qmi?{' '}
           <Link href="/auth/register" className="text-blue-600 font-semibold hover:underline">
@@ -226,7 +239,7 @@ export default function LoginPage() {
       {showSupport && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fadeIn"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"
             style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
           >
             <div className="flex items-center justify-between mb-4">
@@ -305,9 +318,6 @@ export default function LoginPage() {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
         }
       `}</style>
     </div>
