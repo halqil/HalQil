@@ -12,46 +12,69 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { firstName, lastName, phone, username, password } = req.body;
 
-    const existingPhone = await prisma.user.findUnique({ where: { phone } });
+    // Phone format: +998XXXXXXXXX
+    const formattedPhone = phone.startsWith('+998') ? phone : '+998' + phone;
+
+    // Phone unique tekshirish
+    const existingPhone = await prisma.user.findUnique({
+      where: { phone: formattedPhone },
+    });
     if (existingPhone) {
-      return res.status(400).json({ success: false, error: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" });
+      return res.status(400).json({
+        success: false,
+        error: "Bu telefon raqam allaqachon ro'yxatdan o'tgan",
+      });
     }
 
-    const existingUsername = await prisma.user.findUnique({ where: { username } });
+    // Username unique tekshirish
+    const existingUsername = await prisma.user.findUnique({
+      where: { username: username.toLowerCase() },
+    });
     if (existingUsername) {
-      return res.status(400).json({ success: false, error: 'Ushbu username band', code: 'USERNAME_IN_USE' });
+      return res.status(400).json({
+        success: false,
+        error: 'Bu username band, boshqa username tanlang',
+      });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const name = `${firstName} ${lastName}`.trim();
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     function generateWalletId(): string {
       return Math.floor(1000000000 + Math.random() * 9000000000).toString();
     }
 
-    const walletId = generateWalletId();
-
     const user = await prisma.user.create({
       data: {
         firstName,
         lastName,
-        name,
-        username,
-        phone,
+        name: `${firstName} ${lastName}`.trim(),
+        phone: formattedPhone,
+        username: username.toLowerCase(),
         password: hashedPassword,
+        walletId: generateWalletId(),
         role: 'USER',
-        walletId,
-      }
+        status: 'ACTIVE',
+      },
     });
 
-    const tokens = generateTokens({ userId: user.id, role: user.role });
+    const { accessToken, refreshToken } = generateTokens({ userId: user.id, role: user.role });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: {
-        user: { id: user.id, name: user.name, phone: user.phone, role: user.role },
-        ...tokens
-      }
+        user: {
+          id: user.id,
+          walletId: user.walletId,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          name: user.name,
+          username: user.username,
+          phone: user.phone,
+          role: user.role,
+        },
+        accessToken,
+        refreshToken,
+      },
     });
   } catch (error) {
     next(error);
@@ -67,46 +90,84 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { login, password } = req.body;
 
-    let user;
+    let user = null;
 
-    if (/^\+998[0-9]{9}$/.test(login) || /^[0-9]{9}$/.test(login)) {
-      const phone = login.startsWith('+998') ? login : '+998' + login;
+    // Tel raqam tekshirish
+    if (/^[\+]?[0-9]{9,13}$/.test(login.replace(/\s/g, ''))) {
+      let phone = login.replace(/\s/g, '');
+      if (!phone.startsWith('+998') && phone.length === 9) {
+        phone = '+998' + phone;
+      }
       user = await prisma.user.findUnique({ where: { phone } });
-    } else if (login.includes('@')) {
-      user = await prisma.user.findUnique({ where: { email: login } });
-    } else {
-      user = await prisma.user.findUnique({ where: { username: login } });
+    }
+    // Email tekshirish
+    else if (login.includes('@') && login.includes('.')) {
+      user = await prisma.user.findUnique({
+        where: { email: login.toLowerCase() },
+      });
+    }
+    // Username tekshirish
+    else {
+      user = await prisma.user.findUnique({
+        where: { username: login.toLowerCase() },
+      });
     }
 
     if (!user) {
-      return res.status(401).json({ success: false, error: "Login yoki parol noto'g'ri", code: 'INVALID_CREDENTIALS' });
+      return res.status(401).json({
+        success: false,
+        error: "Login yoki parol noto'g'ri",
+      });
     }
 
     if (user.status === 'BLOCKED') {
-      return res.status(403).json({ success: false, error: 'Hisob bloklangan', code: 'FORBIDDEN' });
+      return res.status(403).json({
+        success: false,
+        error: "Hisobingiz bloklangan. Admin bilan bog'laning",
+      });
     }
+
     if (user.status === 'FROZEN') {
-      return res.status(403).json({ success: false, error: 'Hisob muzlatilgan', code: 'FORBIDDEN' });
+      return res.status(403).json({
+        success: false,
+        error: 'Hisobingiz vaqtinchalik muzlatilgan',
+      });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, error: "Login yoki parol noto'g'ri", code: 'INVALID_CREDENTIALS' });
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        error: "Login yoki parol noto'g'ri",
+      });
     }
 
+    // isOnline = true
     await prisma.user.update({
       where: { id: user.id },
-      data: { isOnline: true, lastSeenAt: new Date() }
+      data: { isOnline: true, lastSeenAt: new Date() },
     });
 
-    const tokens = generateTokens({ userId: user.id, role: user.role });
+    const { accessToken, refreshToken } = generateTokens({ userId: user.id, role: user.role });
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: {
-        user: { id: user.id, name: user.name, username: user.username, phone: user.phone, email: user.email, role: user.role, walletId: user.walletId },
-        ...tokens
-      }
+        user: {
+          id: user.id,
+          walletId: user.walletId,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          name: user.name,
+          username: user.username,
+          phone: user.phone,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+        },
+        accessToken,
+        refreshToken,
+      },
     });
   } catch (error) {
     next(error);
@@ -125,19 +186,16 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
     try {
       const decoded = verifyRefreshToken(refreshToken);
       const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-      
+
       if (!user || user.status === 'BLOCKED' || user.status === 'FROZEN') {
-        return res.status(401).json({ success: false, error: 'Yaroqsiz token', code: 'UNAUTHORIZED' });
+        return res.status(401).json({ success: false, error: 'Yaroqsiz token' });
       }
 
       const tokens = generateTokens({ userId: user.id, role: user.role });
 
-      res.json({
-        success: true,
-        data: tokens
-      });
-    } catch (e) {
-      return res.status(401).json({ success: false, error: 'Yaroqsiz token', code: 'UNAUTHORIZED' });
+      return res.json({ success: true, data: tokens });
+    } catch {
+      return res.status(401).json({ success: false, error: 'Yaroqsiz token' });
     }
   } catch (error) {
     next(error);
@@ -147,52 +205,61 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
 /**
  * @desc    Tizimdan chiqish
  * @route   POST /api/auth/logout
- * @access  Public
+ * @access  Private
  */
 export const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // If the user ID is in the request (e.g. from auth middleware), set them offline
     if (req.user && req.user.userId) {
       await prisma.user.update({
         where: { id: req.user.userId },
-        data: { isOnline: false, lastSeenAt: new Date() }
+        data: { isOnline: false, lastSeenAt: new Date() },
       });
     }
-
-    res.json({ success: true, data: { message: 'Tizimdan chiqildi' } });
+    return res.json({ success: true, data: { message: 'Tizimdan chiqildi' } });
   } catch (error) {
     next(error);
   }
 };
 
+/**
+ * @desc    Username mavjudligini tekshirish
+ * @route   GET /api/auth/check-username
+ * @access  Public
+ */
 export const checkUsername = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { username } = req.query;
-    if (!username || typeof username !== 'string') {
-      return res.status(400).json({ success: false, error: 'Username kiritilmadi' });
+    if (!username) {
+      return res.status(400).json({ success: false, error: 'Username kiritilmagan' });
     }
-    
-    const user = await prisma.user.findUnique({ where: { username } });
-    res.json({ success: true, data: { available: !user } });
+    const existing = await prisma.user.findUnique({
+      where: { username: String(username).toLowerCase() },
+    });
+    return res.json({ success: true, data: { available: !existing } });
   } catch (error) {
     next(error);
   }
 };
 
+/**
+ * @desc    Telefon raqam mavjudligini tekshirish
+ * @route   GET /api/auth/check-phone
+ * @access  Public
+ */
 export const checkPhone = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { phone } = req.query;
-    if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({ success: false, error: 'Telefon raqam kiritilmadi' });
+    if (!phone) {
+      return res.status(400).json({ success: false, error: 'Telefon kiritilmagan' });
     }
-
-    let searchPhone = phone;
-    if (/^[0-9]{9}$/.test(phone)) {
-      searchPhone = '+998' + phone;
+    let formattedPhone = String(phone).replace(/\s/g, '');
+    if (!formattedPhone.startsWith('+998') && formattedPhone.length === 9) {
+      formattedPhone = '+998' + formattedPhone;
     }
-    
-    const user = await prisma.user.findUnique({ where: { phone: searchPhone } });
-    res.json({ success: true, data: { available: !user } });
+    const existing = await prisma.user.findUnique({
+      where: { phone: formattedPhone },
+    });
+    return res.json({ success: true, data: { available: !existing } });
   } catch (error) {
     next(error);
   }
