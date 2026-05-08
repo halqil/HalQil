@@ -33,6 +33,7 @@ import catalogRoutes from './routes/catalog.routes';
 import organizationRoutes from './routes/organization.routes';
 import notificationRoutes from './routes/notification.routes';
 import adminChatRoutes from './routes/adminChat.routes';
+import supportRoutes from './routes/support.routes';
 
 // Routes
 app.use('/auth', authRoutes);
@@ -46,6 +47,7 @@ app.use('/catalog', catalogRoutes);
 app.use('/organizations', organizationRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/my/admin-chat', adminChatRoutes);
+app.use('/support', supportRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Mahalliy Xizmat Marketplace API is running...');
