@@ -6,13 +6,48 @@
   --color-secondary: #10b981;
 }
 
+/* ─── Theme CSS Variables ───────────────────────────────────────────────────── */
+:root {
+  --bg: #ffffff;
+  --text: #111827;
+  --card: #f9fafb;
+  --border: #e5e7eb;
+  --muted: #6b7280;
+}
+
+[data-theme="dark"] {
+  --bg: #111827;
+  --text: #f9fafb;
+  --card: #1f2937;
+  --border: #374151;
+  --muted: #9ca3af;
+}
+
+/* ─── Font size ─────────────────────────────────────────────────────────────── */
+[data-fontsize="small"]  { font-size: 14px; }
+[data-fontsize="medium"] { font-size: 16px; }
+[data-fontsize="large"]  { font-size: 18px; }
+
+/* ─── Base ──────────────────────────────────────────────────────────────────── */
 body {
   @apply bg-gray-50 text-gray-900;
   font-family: 'Inter', sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
 }
 
+[data-theme="dark"] body {
+  @apply bg-gray-900 text-gray-50;
+}
+
+/* ─── Glassmorphism Navbar ──────────────────────────────────────────────────── */
 @layer utilities {
   .glass {
     @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-lg;
   }
+}
+
+[data-theme="dark"] .glass {
+  background-color: rgba(17, 24, 39, 0.85);
+  border-color: rgba(55, 65, 81, 0.3);
 }

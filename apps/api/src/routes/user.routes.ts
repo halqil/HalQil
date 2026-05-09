@@ -1,17 +1,26 @@
 import { Router } from 'express';
-import { getMe, updateMe, updateAvatar, getPublicUser } from '../controllers/user.controller';
+import {
+  getMe,
+  updateMe,
+  updateAvatar,
+  updateSettings,
+  changePassword,
+  getPublicUser,
+} from '../controllers/user.controller';
 import { authenticate } from '../middlewares/auth';
-import { upload } from '../middlewares/upload';
+import { uploadAvatar } from '../middlewares/upload';
 
 const router = Router();
 
-// Private routes — /me dan oldin keladi (/:id bilan to'qnashmasin)
+// Private — /me routes (/:id dan OLDIN bo'lishi kerak)
 router.get('/me', authenticate, getMe);
 router.patch('/me/profile', authenticate, updateMe);
-router.patch('/me/avatar', authenticate, upload.single('avatar'), updateAvatar);
+router.post('/me/avatar', authenticate, uploadAvatar.single('avatar'), updateAvatar);
+router.patch('/me/avatar', authenticate, uploadAvatar.single('avatar'), updateAvatar);
+router.patch('/me/settings', authenticate, updateSettings);
+router.patch('/me/change-password', authenticate, changePassword);
 
-// Public route — /me dan keyin (/:id ni "me" deb o'qimasin)
+// Public
 router.get('/:id', getPublicUser);
 
 export default router;
-

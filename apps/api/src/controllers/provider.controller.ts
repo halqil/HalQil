@@ -505,3 +505,64 @@ export const applyToJoinOrganization = async (req: Request, res: Response, next:
     next(error);
   }
 };
+
+// ─── Provider Settings ────────────────────────────────────────────────────────
+/**
+ * @desc    Provayder sozlamalarini yangilash (districts, dailyLimit, priceFrom, priceTo)
+ * @route   PATCH /api/provider/settings
+ * @access  Private (PROVIDER)
+ */
+export const updateProviderSettings = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { districts, dailyLimit, priceFrom, priceTo } = req.body;
+
+    const profile = await prisma.providerProfile.findUnique({ where: { userId } });
+    if (!profile) return res.status(404).json({ success: false, error: 'Provayder profili topilmadi' });
+
+    // Validatsiya
+    if (dailyLimit !== undefined) {
+      const dl = Number(dailyLimit);
+      if (isNaN(dl) || dl < 1 || dl > 50)
+        return res.status(400).json({ success: false, error: 'dailyLimit 1 dan 50 gacha bo\'lishi kerak' });
+    }
+    if (priceFrom !== undefined && priceTo !== undefined) {
+      if (Number(priceTo) > 0 && Number(priceTo) <= Number(priceFrom))
+        return res.status(400).json({ success: false, error: 'priceTo priceFrom dan katta bo\'lishi kerak' });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const data: Record<string, unknown> = {};
+      if (dailyLimit !== undefined) data.dailyLimit = Number(dailyLimit);
+      if (priceFrom !== undefined) data.priceFrom = Number(priceFrom);
+      if (priceTo !== undefined) data.priceTo = Number(priceTo);
+
+      const updated = await tx.providerProfile.update({
+        where: { userId },
+        data,
+        include: { districts: true },
+      });
+
+      // Hududlarni yangilash
+      if (districts && Array.isArray(districts)) {
+        await tx.providerDistrict.deleteMany({ where: { providerId: profile.id } });
+        if (districts.length > 0) {
+          await tx.providerDistrict.createMany({
+            data: districts.map((districtName: string) => ({
+              providerId: profile.id,
+              districtName: String(districtName).trim(),
+            })),
+          });
+        }
+      }
+
+      return updated;
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};

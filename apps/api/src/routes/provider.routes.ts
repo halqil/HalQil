@@ -5,7 +5,7 @@ import {
   addPortfolioImage, removePortfolioImage,
   applyToCreateOrganization, applyToJoinOrganization,
   updateAvailabilityStatus, getSchedule, updateSchedule, updateBio,
-  getMyApplication
+  getMyApplication, updateProviderSettings,
 } from '../controllers/provider.controller';
 import { validate } from '../middlewares/validate';
 import { applyProviderSchema, updateProfileSchema, addSkillSchema } from '../schemas/provider.schema';
@@ -24,6 +24,7 @@ router.get('/my-application', getMyApplication);
 router.get('/profile', getMyProfile);
 router.patch('/profile', validate(updateProfileSchema), updateProfile);
 router.patch('/bio', updateBio);
+router.patch('/settings', updateProviderSettings);
 
 // Status and Schedule
 router.patch('/availability', updateAvailabilityStatus);

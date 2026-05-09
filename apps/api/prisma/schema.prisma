@@ -112,6 +112,14 @@ model User {
   cancelledOrders  Int              @default(0)
   isOnline        Boolean          @default(false)
   lastSeenAt      DateTime?
+  // UI/UX sozlamalar
+  theme             String   @default("system")
+  fontSize          String   @default("medium")
+  language          String   @default("uz")
+  notifyNewOrder    Boolean  @default(true)
+  notifyChat        Boolean  @default(true)
+  notifySystem      Boolean  @default(true)
+  notifyApplication Boolean  @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -168,6 +176,9 @@ model ProviderProfile {
   failedOrders     Int         @default(0)
   applicationId String?        // qaysi ProviderApplication orqali tasdiqlangan
   application   ProviderApplication? @relation(fields: [applicationId], references: [id])
+  dailyLimit    Int?           @default(10)
+  priceFrom     Int?
+  priceTo       Int?
   createdAt     DateTime       @default(now())
 
   providerSkills        ProviderSkill[]
