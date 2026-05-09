@@ -258,6 +258,31 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
 };
 
 /**
+ * @desc    Parolni tasdiqlash (2-step password change uchun)
+ * @route   POST /api/user/me/verify-password
+ * @access  Private
+ */
+export const verifyPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ success: false, error: 'Parol kiritilmagan' });
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { password: true } });
+    if (!user) return res.status(404).json({ success: false, error: 'Foydalanuvchi topilmadi' });
+
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) return res.status(400).json({ success: false, error: "Parol noto'g'ri" });
+
+    res.json({ success: true, message: 'Parol tasdiqlandi' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Ommaviy user profili
  * @route   GET /api/user/:id
  * @access  Public

@@ -29,9 +29,9 @@ type User = {
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  ACTIVE:  { label: "Faol",       color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  FROZEN:  { label: "Muzlatilgan", color: "bg-blue-100 text-blue-700 border-blue-200" },
-  BLOCKED: { label: "Bloklangan", color: "bg-red-100 text-red-700 border-red-200" },
+  ACTIVE:  { label: "Faol",       color: "bg-emerald-500/10 text-emerald-500" },
+  FROZEN:  { label: "Muzlatilgan", color: "bg-blue-500/10 text-blue-500" },
+  BLOCKED: { label: "Bloklangan", color: "bg-red-500/10 text-red-500" },
 };
 
 const SORT_OPTIONS = [
@@ -188,23 +188,24 @@ export default function AdminUsers() {
   return (
     <div className="space-y-5">
       {/* Header card */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-bold text-gray-900">Foydalanuvchilarni boshqarish</h2>
-          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+          <h2 className="text-xl font-bold" style={{ color: "var(--text)" }}>Foydalanuvchilarni boshqarish</h2>
+          <span className="text-sm px-3 py-1 rounded-full" style={{ color: "var(--text-secondary)", backgroundColor: "var(--sidebar-hover)" }}>
             Jami: {total} ta
           </span>
         </div>
 
         {/* Role tabs */}
-        <div className="flex gap-2 p-1 bg-gray-100 rounded-xl mb-5 w-fit">
+        <div className="flex gap-2 p-1 rounded-xl mb-5 w-fit" style={{ backgroundColor: "var(--sidebar-hover)" }}>
           <button
             onClick={() => setActiveRole("USER")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeRole === "USER"
-                ? "bg-white text-blue-700 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "text-blue-700 shadow-sm"
+                : "hover:text-[var(--text)]"
             }`}
+            style={activeRole === "USER" ? { backgroundColor: "var(--bg-primary)" } : { color: "var(--text-secondary)" }}
           >
             <Users size={15} /> Foydalanuvchilar
           </button>
@@ -212,9 +213,10 @@ export default function AdminUsers() {
             onClick={() => setActiveRole("PROVIDER")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeRole === "PROVIDER"
-                ? "bg-white text-emerald-700 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "text-emerald-700 shadow-sm"
+                : "hover:text-[var(--text)]"
             }`}
+            style={activeRole === "PROVIDER" ? { backgroundColor: "var(--bg-primary)" } : { color: "var(--text-secondary)" }}
           >
             <Wrench size={15} /> Provayderlar
           </button>
@@ -224,18 +226,19 @@ export default function AdminUsers() {
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search */}
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
             <input
               type="text"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="ID, username yoki email bo'yicha qidiring..."
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-400 outline-none"
+              className="glass-input w-full pl-9 pr-4 py-2.5 rounded-xl text-sm"
             />
             {searchInput && (
               <button
                 onClick={() => setSearchInput("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-[var(--text-secondary)]"
+                style={{ color: "var(--muted)" }}
               >
                 <X size={14} />
               </button>
@@ -244,11 +247,11 @@ export default function AdminUsers() {
 
           {/* Sort */}
           <div className="flex items-center gap-2">
-            <ArrowUpDown size={15} className="text-gray-400 flex-shrink-0" />
+            <ArrowUpDown size={15} className="flex-shrink-0" style={{ color: "var(--muted)" }} />
             <select
               value={sort}
               onChange={e => { setSort(e.target.value); setPage(1); }}
-              className="bg-gray-50 border border-gray-200 rounded-xl text-sm px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="glass-input rounded-xl text-sm px-3 py-2.5"
             >
               {SORT_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -259,13 +262,13 @@ export default function AdminUsers() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
           </div>
         ) : users.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
+          <div className="text-center py-16" style={{ color: "var(--muted)" }}>
             <Users size={40} className="mx-auto mb-3 opacity-30" />
             <p>Foydalanuvchilar topilmadi</p>
           </div>
@@ -273,20 +276,20 @@ export default function AdminUsers() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-5 py-3.5 font-semibold text-gray-600">ID raqami</th>
-                  <th className="px-5 py-3.5 font-semibold text-gray-600">Username</th>
-                  <th className="px-5 py-3.5 font-semibold text-gray-600">Ism Familya</th>
-                  <th className="px-5 py-3.5 font-semibold text-gray-600">Email</th>
-                  <th className="px-5 py-3.5 font-semibold text-gray-600">Status</th>
-                  <th className="px-5 py-3.5 font-semibold text-gray-600">Amallar</th>
+                <tr style={{ backgroundColor: "var(--sidebar-hover)", borderBottom: "1px solid var(--border-strong)" }}>
+                  <th className="px-5 py-3.5 font-semibold" style={{ color: "var(--text-secondary)" }}>ID raqami</th>
+                  <th className="px-5 py-3.5 font-semibold" style={{ color: "var(--text-secondary)" }}>Username</th>
+                  <th className="px-5 py-3.5 font-semibold" style={{ color: "var(--text-secondary)" }}>Ism Familya</th>
+                  <th className="px-5 py-3.5 font-semibold" style={{ color: "var(--text-secondary)" }}>Email</th>
+                  <th className="px-5 py-3.5 font-semibold" style={{ color: "var(--text-secondary)" }}>Status</th>
+                  <th className="px-5 py-3.5 font-semibold" style={{ color: "var(--text-secondary)" }}>Amallar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y" style={{ borderColor: "var(--border-strong)" }}>
                 {users.map(u => {
-                  const statusInfo = STATUS_LABELS[u.status] || { label: u.status, color: "bg-gray-100 text-gray-600 border-gray-200" };
+                  const statusInfo = STATUS_LABELS[u.status] || { label: u.status, color: "bg-gray-500/10 text-gray-500" };
                   return (
-                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={u.id} className="hover:bg-[var(--sidebar-hover)] transition-colors">
                       {/* walletId */}
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5">
@@ -294,7 +297,7 @@ export default function AdminUsers() {
                             className={`w-2 h-2 rounded-full flex-shrink-0 ${u.isOnline ? "bg-green-500" : "bg-gray-300"}`}
                             title={u.isOnline ? "Online" : "Offline"}
                           />
-                          <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-700">
+                          <span className="font-mono text-xs px-2 py-0.5 rounded" style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text)" }}>
                             {u.walletId || u.id.slice(0, 8) + "…"}
                           </span>
                         </div>
@@ -309,14 +312,14 @@ export default function AdminUsers() {
 
                       {/* name */}
                       <td className="px-5 py-3.5">
-                        <div className="font-medium text-gray-800">{u.name}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">
+                        <div className="font-medium" style={{ color: "var(--text)" }}>{u.name}</div>
+                        <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
                           {new Date(u.createdAt).toLocaleDateString("uz-UZ")}
                         </div>
                       </td>
 
                       {/* email */}
-                      <td className="px-5 py-3.5 text-gray-600 max-w-[200px] truncate">
+                      <td className="px-5 py-3.5 max-w-[200px] truncate" style={{ color: "var(--text-secondary)" }}>
                         {u.email}
                       </td>
 
@@ -341,16 +344,17 @@ export default function AdminUsers() {
                           <button
                             onClick={() => setViewUser(u)}
                             title="Ko'rish"
-                            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                            className="p-1.5 rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors"
+                            style={{ color: "var(--text-secondary)" }}
                           >
                             <Eye size={15} />
                           </button>
 
-                      {/* Chat ochish */}
+                          {/* Chat ochish */}
                           <button
                             onClick={() => { setChatUser(u); setChatMsg(""); }}
                             title="Chat ochish"
-                            className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                            className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-500/10 transition-colors"
                           >
                             <MessageSquare size={15} />
                           </button>
@@ -359,7 +363,7 @@ export default function AdminUsers() {
                           <button
                             onClick={() => { setNotifUser(u); setNotifTitle(""); setNotifMsg(""); setNotifType("SYSTEM"); }}
                             title="Xabar yuborish"
-                            className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                            className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10 transition-colors"
                           >
                             <Send size={15} />
                           </button>
@@ -370,7 +374,7 @@ export default function AdminUsers() {
                               onClick={() => handleStatusChange(u.id, "FROZEN")}
                               disabled={actionLoading === u.id + "-status"}
                               title="Muzlatish"
-                              className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                              className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10 transition-colors"
                             >
                               <Lock size={15} />
                             </button>
@@ -382,7 +386,7 @@ export default function AdminUsers() {
                               onClick={() => handleStatusChange(u.id, "ACTIVE")}
                               disabled={actionLoading === u.id + "-status"}
                               title="Faollashtirish"
-                              className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                              className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"
                             >
                               <CheckCircle size={15} />
                             </button>
@@ -393,7 +397,7 @@ export default function AdminUsers() {
                             onClick={() => handleDelete(u)}
                             disabled={actionLoading === u.id + "-del"}
                             title="O'chirish"
-                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors"
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -409,23 +413,24 @@ export default function AdminUsers() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">
+          <div className="px-5 py-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--border-strong)" }}>
+            <span className="text-sm" style={{ color: "var(--muted)" }}>
               {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} / {total} ta
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg hover:bg-[var(--sidebar-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                style={{ color: "var(--text)" }}
               >
                 <ChevronLeft size={16} />
               </button>
 
               {page > 3 && (
                 <>
-                  <button onClick={() => setPage(1)} className="w-8 h-8 rounded-lg text-sm hover:bg-gray-100 transition-colors">1</button>
-                  {page > 4 && <span className="text-gray-400 px-1">…</span>}
+                  <button onClick={() => setPage(1)} className="w-8 h-8 rounded-lg text-sm hover:bg-[var(--sidebar-hover)] transition-colors" style={{ color: "var(--text)" }}>1</button>
+                  {page > 4 && <span className="px-1" style={{ color: "var(--muted)" }}>…</span>}
                 </>
               )}
 
@@ -436,8 +441,9 @@ export default function AdminUsers() {
                   className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                     p === page
                       ? "bg-blue-600 text-white"
-                      : "hover:bg-gray-100 text-gray-600"
+                      : "hover:bg-[var(--sidebar-hover)]"
                   }`}
+                  style={p !== page ? { color: "var(--text-secondary)" } : undefined}
                 >
                   {p}
                 </button>
@@ -445,15 +451,16 @@ export default function AdminUsers() {
 
               {page < totalPages - 2 && (
                 <>
-                  {page < totalPages - 3 && <span className="text-gray-400 px-1">…</span>}
-                  <button onClick={() => setPage(totalPages)} className="w-8 h-8 rounded-lg text-sm hover:bg-gray-100 transition-colors">{totalPages}</button>
+                  {page < totalPages - 3 && <span className="px-1" style={{ color: "var(--muted)" }}>…</span>}
+                  <button onClick={() => setPage(totalPages)} className="w-8 h-8 rounded-lg text-sm hover:bg-[var(--sidebar-hover)] transition-colors" style={{ color: "var(--text)" }}>{totalPages}</button>
                 </>
               )}
 
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg hover:bg-[var(--sidebar-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                style={{ color: "var(--text)" }}
               >
                 <ChevronRight size={16} />
               </button>
@@ -465,67 +472,67 @@ export default function AdminUsers() {
       {/* ─── View Modal ─── */}
       {viewUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="glass-modal fade-in p-6 w-full max-w-md">
             <div className="flex justify-between items-start mb-5">
-              <h3 className="text-xl font-bold">Profil ma'lumotlari</h3>
-              <button onClick={() => setViewUser(null)} className="text-gray-400 hover:text-gray-700">
+              <h3 className="text-xl font-bold" style={{ color: "var(--text)" }}>Profil ma'lumotlari</h3>
+              <button onClick={() => setViewUser(null)} style={{ color: "var(--muted)" }}>
                 <X size={20} />
               </button>
             </div>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Ism</span>
-                <span className="font-semibold">{viewUser.name}</span>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>Ism</span>
+                <span className="font-semibold" style={{ color: "var(--text)" }}>{viewUser.name}</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Username</span>
-                <span className="font-semibold text-blue-600">@{viewUser.username || "—"}</span>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>Username</span>
+                <span className="font-semibold text-blue-500">@{viewUser.username || "—"}</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Email</span>
-                <span className="font-semibold">{viewUser.email}</span>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>Email</span>
+                <span className="font-semibold" style={{ color: "var(--text)" }}>{viewUser.email}</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">ID raqami</span>
-                <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{viewUser.walletId || "—"}</span>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>ID raqami</span>
+                <span className="font-mono text-xs px-2 py-0.5 rounded" style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text)" }}>{viewUser.walletId || "—"}</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Rol</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${viewUser.role === "PROVIDER" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : viewUser.role === "SUPER_ADMIN" ? "bg-red-100 text-red-700 border-red-200" : "bg-blue-100 text-blue-700 border-blue-200"}`}>{viewUser.role}</span>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>Rol</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${viewUser.role === "PROVIDER" ? "bg-emerald-500/10 text-emerald-500" : viewUser.role === "SUPER_ADMIN" ? "bg-red-500/10 text-red-500" : "bg-blue-500/10 text-blue-500"}`}>{viewUser.role}</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Status</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${(STATUS_LABELS[viewUser.status] || { color: "" }).color}`}>{STATUS_LABELS[viewUser.status]?.label || viewUser.status}</span>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>Status</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${(STATUS_LABELS[viewUser.status] || { color: "" }).color}`}>{STATUS_LABELS[viewUser.status]?.label || viewUser.status}</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Ishonchlilik</span>
-                <span className="font-bold text-blue-600">{Math.round(viewUser.reliability || 100)}%</span>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>Ishonchlilik</span>
+                <span className="font-bold text-blue-500">{Math.round(viewUser.reliability || 100)}%</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Muvaffaqiyatli / Bekor</span>
-                <span><span className="text-green-600 font-bold">{viewUser.successfulOrders ?? 0}</span> / <span className="text-red-500 font-bold">{viewUser.cancelledOrders ?? 0}</span></span>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>Muvaffaqiyatli / Bekor</span>
+                <span><span className="text-green-500 font-bold">{viewUser.successfulOrders ?? 0}</span> / <span className="text-red-500 font-bold">{viewUser.cancelledOrders ?? 0}</span></span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">Online</span>
-                <span className={`flex items-center gap-1 font-semibold ${viewUser.isOnline ? "text-green-600" : "text-gray-400"}`}>
+              <div className="flex justify-between py-2 glass-divider">
+                <span style={{ color: "var(--muted)" }}>Online</span>
+                <span className={`flex items-center gap-1 font-semibold ${viewUser.isOnline ? "text-green-500" : ""}`} style={!viewUser.isOnline ? { color: "var(--muted)" } : undefined}>
                   <span className={`w-2 h-2 rounded-full ${viewUser.isOnline ? "bg-green-500" : "bg-gray-300"}`} />
                   {viewUser.isOnline ? "Online" : "Offline"}
                 </span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-gray-500">A'zo bo'lgan</span>
-                <span className="font-semibold">{new Date(viewUser.createdAt).toLocaleDateString("uz-UZ", { year: "numeric", month: "long", day: "numeric" })}</span>
+                <span style={{ color: "var(--muted)" }}>A'zo bo'lgan</span>
+                <span className="font-semibold" style={{ color: "var(--text)" }}>{new Date(viewUser.createdAt).toLocaleDateString("uz-UZ", { year: "numeric", month: "long", day: "numeric" })}</span>
               </div>
             </div>
             <div className="mt-5 flex justify-between gap-2">
               <a
                 href={`/users/${viewUser.id}`}
                 target="_blank"
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-blue-500 hover:underline"
               >
                 Ommaviy profilni ko'rish →
               </a>
-              <button onClick={() => setViewUser(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl text-sm font-medium">
+              <button onClick={() => setViewUser(null)} className="btn-ghost px-4 py-2 rounded-xl text-sm font-medium">
                 Yopish
               </button>
             </div>
@@ -536,48 +543,48 @@ export default function AdminUsers() {
       {/* ─── Send Notification Modal ─── */}
       {notifUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="glass-modal fade-in p-6 w-full max-w-md">
             <div className="flex justify-between items-start mb-5">
               <div>
-                <h3 className="text-xl font-bold">Xabar yuborish</h3>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  → <span className="font-semibold text-gray-700">{notifUser.name}</span>
-                  {notifUser.username && <span className="text-blue-600 ml-1">@{notifUser.username}</span>}
+                <h3 className="text-xl font-bold" style={{ color: "var(--text)" }}>Xabar yuborish</h3>
+                <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
+                  → <span className="font-semibold" style={{ color: "var(--text)" }}>{notifUser.name}</span>
+                  {notifUser.username && <span className="text-blue-500 ml-1">@{notifUser.username}</span>}
                 </p>
               </div>
-              <button onClick={() => setNotifUser(null)} className="text-gray-400 hover:text-gray-700">
+              <button onClick={() => setNotifUser(null)} style={{ color: "var(--muted)" }}>
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleSendNotif} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sarlavha *</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Sarlavha *</label>
                 <input
                   type="text"
                   required
                   value={notifTitle}
                   onChange={e => setNotifTitle(e.target.value)}
                   placeholder="Bildirishnoma sarlavhasi..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+                  className="glass-input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Xabar *</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Xabar *</label>
                 <textarea
                   required
                   rows={3}
                   value={notifMsg}
                   onChange={e => setNotifMsg(e.target.value)}
                   placeholder="Xabar matni..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-gray-50"
+                  className="glass-textarea"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Turi</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Turi</label>
                 <select
                   value={notifType}
                   onChange={e => setNotifType(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+                  className="glass-input"
                 >
                   <option value="SYSTEM">System</option>
                   <option value="WARNING">Warning</option>
@@ -588,14 +595,14 @@ export default function AdminUsers() {
                 <button
                   type="button"
                   onClick={() => setNotifUser(null)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl text-sm font-medium"
+                  className="btn-ghost px-4 py-2 rounded-xl text-sm font-medium"
                 >
                   Bekor
                 </button>
                 <button
                   type="submit"
                   disabled={notifLoading}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-bold flex items-center gap-2"
+                  className="btn-primary px-5 py-2 rounded-xl text-sm font-bold disabled:opacity-60 flex items-center gap-2"
                 >
                   <Send size={14} />
                   {notifLoading ? "Yuborilmoqda..." : "Yuborish"}
@@ -609,48 +616,48 @@ export default function AdminUsers() {
       {/* ─── Chat Modal ─── */}
       {chatUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="glass-modal fade-in p-6 w-full max-w-md">
             <div className="flex justify-between items-start mb-5">
               <div>
-                <h3 className="text-xl font-bold">Chat ochish</h3>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  → <span className="font-semibold text-gray-700">{chatUser.name}</span>
-                  {chatUser.username && <span className="text-indigo-600 ml-1">@{chatUser.username}</span>}
+                <h3 className="text-xl font-bold" style={{ color: "var(--text)" }}>Chat ochish</h3>
+                <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
+                  → <span className="font-semibold" style={{ color: "var(--text)" }}>{chatUser.name}</span>
+                  {chatUser.username && <span className="text-indigo-500 ml-1">@{chatUser.username}</span>}
                 </p>
               </div>
-              <button onClick={() => setChatUser(null)} className="text-gray-400 hover:text-gray-700">
+              <button onClick={() => setChatUser(null)} style={{ color: "var(--muted)" }}>
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleOpenChat} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Birinchi xabar *</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Birinchi xabar *</label>
                 <textarea
                   required
                   rows={4}
                   value={chatMsg}
                   onChange={e => setChatMsg(e.target.value)}
                   placeholder="Foydalanuvchiga birinchi xabarni yozing..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none bg-gray-50"
+                  className="glass-textarea"
                 />
               </div>
               {openedChatId && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-sm text-emerald-700 flex items-center gap-2">
-                  ✅ Chat muvaffaqiyatli ochildi
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2 text-sm text-emerald-500 flex items-center gap-2">
+                  <CheckCircle size={14} /> Chat muvaffaqiyatli ochildi
                 </div>
               )}
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => { setChatUser(null); setOpenedChatId(null); }}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl text-sm font-medium"
+                  className="btn-ghost px-4 py-2 rounded-xl text-sm font-medium"
                 >
                   Bekor
                 </button>
                 <button
                   type="submit"
                   disabled={chatLoading}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl text-sm font-bold flex items-center gap-2"
+                  className="btn-primary px-5 py-2 rounded-xl text-sm font-bold disabled:opacity-60 flex items-center gap-2"
                 >
                   <MessageSquare size={14} />
                   {chatLoading ? "Ochilmoqda..." : "Chat ochish"}

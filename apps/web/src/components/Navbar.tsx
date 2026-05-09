@@ -3,46 +3,45 @@
 import Link from "next/link";
 import { useAuthStore } from "../lib/store";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Search, Package, Briefcase, Bell, Settings, LogOut, User, Sun, Moon } from "lucide-react";
+import {
+  LayoutDashboard, Search, Package, Briefcase, Bell,
+  Settings, LogOut, User, Sun, Moon, Monitor, MessageCircle
+} from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import api from "../lib/api";
+import toast from "react-hot-toast";
 import Avatar from "./Avatar";
+
+type ThemeMode = "light" | "dark" | "system";
 
 export default function Navbar() {
   const { user, isAuthenticated, logout, setTheme } = useAuthStore();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>("system");
+  const [supportLoading, setSupportLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<any>(null);
 
-  // Tashqi click da dropdown yopilsin
+  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Hozirgi theme ni aniqlash
+  // Init theme mode from localStorage
   useEffect(() => {
-    const current = document.documentElement.getAttribute('data-theme');
-    setIsDark(current === 'dark');
-
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => {
-      const t = localStorage.getItem('theme') || 'system';
-      if (t === 'system') setIsDark(mq.matches);
-    };
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const stored = (localStorage.getItem("theme") || "system") as ThemeMode;
+    setThemeMode(stored);
   }, []);
 
-  // Notification count va socket
+  // Notification count + socket
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -67,83 +66,126 @@ export default function Navbar() {
     };
   }, [isAuthenticated]);
 
+  const handleSupportClick = async () => {
+    if (supportLoading) return;
+    setSupportLoading(true);
+    try {
+      const res = await api.get("/my/admin-chat");
+      if (res.data.success && res.data.data) {
+        setDropdownOpen(false);
+        router.push("/admin-chat");
+        return;
+      }
+    } catch {
+      // chat yo'q, yangi yaratamiz
+    }
+    try {
+      await api.post("/my/admin-chat");
+      setDropdownOpen(false);
+      router.push("/admin-chat");
+    } catch {
+      toast.error("Qo'llab-quvvatlash chat ochishda xatolik");
+    } finally {
+      setSupportLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     setDropdownOpen(false);
     logout();
     router.push("/auth/login");
   };
 
-  const handleThemeToggle = () => {
-    const newTheme = isDark ? 'light' : 'dark';
-    setIsDark(!isDark);
-    setTheme(newTheme);
+  // Cycling theme: light -> dark -> system -> light
+  const handleThemeCycle = () => {
+    const cycle: ThemeMode[] = ["light", "dark", "system"];
+    const idx = cycle.indexOf(themeMode);
+    const next = cycle[(idx + 1) % 3];
+    setThemeMode(next);
+    setTheme(next);
     if (isAuthenticated) {
-      api.patch('/user/me/settings', { theme: newTheme }).catch(() => {});
+      api.patch("/user/me/settings", { theme: next }).catch(() => {});
+    }
+  };
+
+  const getThemeIcon = () => {
+    switch (themeMode) {
+      case "light": return <Sun size={20} />;
+      case "dark": return <Moon size={20} />;
+      case "system": return <Monitor size={20} />;
+    }
+  };
+
+  const getThemeLabel = () => {
+    switch (themeMode) {
+      case "light": return "Yorug' rejim";
+      case "dark": return "Qorong'u rejim";
+      case "system": return "Tizim rejimi";
     }
   };
 
   return (
-    <nav className="sticky top-0 z-50 glass w-full px-6 py-4 flex items-center justify-between transition-all">
+    <nav className="sticky top-0 z-50 glass w-full px-6 py-3 flex items-center justify-between">
       {/* Logo */}
       <Link
         href="/"
-        className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+        className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent"
       >
         HalQil
       </Link>
 
-      <div className="flex items-center gap-4">
-        {/* Qidiruv */}
+      <div className="flex items-center gap-3">
+        {/* Search */}
         <Link
           href="/providers"
-          className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--sidebar-hover)] transition-all"
         >
           <Search size={20} />
-          <span className="hidden md:inline font-medium">Qidiruv</span>
+          <span className="hidden md:inline font-medium text-sm">Qidiruv</span>
         </Link>
 
-        {/* Theme toggle ☀️/🌙 */}
+        {/* Theme cycle */}
         <button
-          onClick={handleThemeToggle}
-          className="p-2 text-gray-500 hover:text-yellow-500 hover:bg-yellow-50 rounded-full transition-all"
-          title={isDark ? "Yorug' rejim" : "Qorong'u rejim"}
+          onClick={handleThemeCycle}
+          className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--sidebar-hover)] transition-all"
+          title={getThemeLabel()}
         >
-          {isDark ? <Sun size={20} /> : <Moon size={20} />}
+          {getThemeIcon()}
         </button>
 
         {isAuthenticated ? (
-          <div className="flex items-center gap-3">
-            {/* Bildirishnomalar */}
+          <div className="flex items-center gap-2">
+            {/* Notifications */}
             <Link
               href="/notifications"
-              className="relative p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
+              className="relative p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--sidebar-hover)] transition-all"
               onClick={() => setUnreadCount(0)}
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">
-                  {unreadCount > 99 ? '99+' : unreadCount}
+                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
             </Link>
 
-            {/* Buyurtmalar */}
+            {/* Orders */}
             <Link
               href="/orders"
-              className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--sidebar-hover)] transition-all"
             >
               <Package size={20} />
-              <span className="hidden md:inline font-medium">Buyurtmalar</span>
+              <span className="hidden md:inline font-medium text-sm">Buyurtmalar</span>
             </Link>
 
-            {/* Provayder */}
+            {/* Provider dashboard */}
             {user?.role === "PROVIDER" && (
               <Link
                 href="/provider/dashboard"
-                className="flex items-center gap-2 text-gray-600 hover:text-emerald-600 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-[var(--sidebar-hover)] transition-all"
               >
                 <Briefcase size={20} />
-                <span className="hidden md:inline font-medium">Provayder</span>
+                <span className="hidden md:inline font-medium text-sm">Provayder</span>
               </Link>
             )}
 
@@ -151,10 +193,10 @@ export default function Navbar() {
             {user?.role === "SUPER_ADMIN" && (
               <Link
                 href="/admin"
-                className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-indigo-500 hover:bg-[var(--sidebar-hover)] transition-all"
               >
                 <LayoutDashboard size={20} />
-                <span className="hidden md:inline font-medium">Admin Panel</span>
+                <span className="hidden md:inline font-medium text-sm">Admin</span>
               </Link>
             )}
 
@@ -162,52 +204,67 @@ export default function Navbar() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(prev => !prev)}
-                className="flex items-center gap-2 hover:opacity-90 transition-opacity rounded-xl px-2 py-1 hover:bg-gray-100"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-[var(--sidebar-hover)] transition-all"
               >
                 <Avatar name={user?.name} avatar={user?.avatar} size="sm" />
-                <span className="hidden md:inline font-medium text-gray-700 max-w-[100px] truncate text-sm">
+                <span className="hidden md:inline font-medium text-sm max-w-[100px] truncate" style={{ color: "var(--text)" }}>
                   {user?.name}
                 </span>
                 <svg
-                  className={`w-3.5 h-3.5 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  className={`w-3.5 h-3.5 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+                  style={{ color: "var(--muted)" }}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
-                  style={{ boxShadow: '0 20px 40px -12px rgba(0,0,0,0.15)' }}
-                >
+                <div className="absolute right-0 top-full mt-2 w-56 glass-dropdown z-50 fade-in">
                   {/* User info */}
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                    <p className="text-xs text-gray-400 truncate">@{user?.username || user?.id?.slice(0, 8)}</p>
+                  <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border-strong)" }}>
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{user?.name}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--muted)" }}>@{user?.username || user?.id?.slice(0, 8)}</p>
                   </div>
 
                   <Link
                     href="/profile"
                     onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--sidebar-hover)]"
+                    style={{ color: "var(--text-secondary)" }}
                   >
-                    <User size={16} className="text-gray-400" />
+                    <User size={16} />
                     Profilim
                   </Link>
                   <Link
                     href="/settings"
                     onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--sidebar-hover)]"
+                    style={{ color: "var(--text-secondary)" }}
                   >
-                    <Settings size={16} className="text-gray-400" />
+                    <Settings size={16} />
                     Sozlamalar
                   </Link>
 
-                  <div className="h-px bg-gray-100 my-1" />
+                  <div className="glass-divider mx-2" />
+
+                  <button
+                    onClick={handleSupportClick}
+                    disabled={supportLoading}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--sidebar-hover)] disabled:opacity-60"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    <MessageCircle size={16} />
+                    {supportLoading ? "Yuklanmoqda..." : "Qo'llab-quvvatlash"}
+                  </button>
+
+                  <div className="glass-divider mx-2" />
 
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
                   >
                     <LogOut size={16} />
                     Chiqish
@@ -220,13 +277,13 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <Link
               href="/auth/login"
-              className="px-4 py-2 text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors"
+              className="btn-ghost text-sm"
             >
               Kirish
             </Link>
             <Link
               href="/auth/register"
-              className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+              className="btn-primary text-sm"
             >
               Ro'yxatdan o'tish
             </Link>

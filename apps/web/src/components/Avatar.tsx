@@ -16,14 +16,14 @@ const SIZE_MAP = {
 };
 
 const BG_COLORS = [
-  'bg-blue-500',
-  'bg-purple-500',
-  'bg-green-500',
-  'bg-orange-500',
-  'bg-pink-500',
-  'bg-teal-500',
-  'bg-indigo-500',
-  'bg-rose-500',
+  'from-blue-500 to-blue-600',
+  'from-purple-500 to-purple-600',
+  'from-green-500 to-green-600',
+  'from-orange-500 to-orange-600',
+  'from-pink-500 to-pink-600',
+  'from-teal-500 to-teal-600',
+  'from-indigo-500 to-indigo-600',
+  'from-rose-500 to-rose-600',
 ];
 
 function getInitials(name?: string | null): string {
@@ -33,7 +33,7 @@ function getInitials(name?: string | null): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function getBgColor(name?: string | null): string {
+function getBgGradient(name?: string | null): string {
   if (!name) return BG_COLORS[0];
   const code = [...name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   return BG_COLORS[code % BG_COLORS.length];
@@ -53,9 +53,8 @@ export default function Avatar({ name, avatar, size = 'md', className = '' }: Av
       <img
         src={src}
         alt={name || 'Avatar'}
-        className={`${sizeClass} rounded-full object-cover ring-2 ring-white/50 ${className}`}
+        className={`${sizeClass} rounded-full object-cover ring-2 ring-[var(--border)] ${className}`}
         onError={(e) => {
-          // Rasm yuklanmasa initials ko'rsatish
           (e.target as HTMLImageElement).style.display = 'none';
         }}
       />
@@ -64,7 +63,7 @@ export default function Avatar({ name, avatar, size = 'md', className = '' }: Av
 
   return (
     <div
-      className={`${sizeClass} ${getBgColor(name)} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${className}`}
+      className={`${sizeClass} bg-gradient-to-br ${getBgGradient(name)} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 shadow-sm ${className}`}
     >
       {getInitials(name)}
     </div>

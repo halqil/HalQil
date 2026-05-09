@@ -6,7 +6,12 @@ import { useAuthStore } from "../../lib/store";
 import api from "../../lib/api";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { User, Mail, Shield, Star, Calendar, Briefcase, MapPin, CheckCircle, Edit3, Copy, MessageSquare } from "lucide-react";
+import Avatar from "../../components/Avatar";
+import {
+  User, Mail, Shield, Star, Calendar, Briefcase, MapPin,
+  CheckCircle, Edit3, Copy, MessageSquare, Rocket, Clock,
+  XCircle, BarChart3, Award, Building
+} from "lucide-react";
 
 import { AxiosError } from "axios";
 
@@ -20,7 +25,6 @@ export default function Profile() {
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
 
-  // null = yuklanmagan, false = ariza yo'q, object = ariza mavjud
   const [application, setApplication] = useState<Record<string, any> | null | false>(null);
 
   const [showCreateOrg, setShowCreateOrg] = useState(false);
@@ -33,10 +37,7 @@ export default function Profile() {
   const [orgsList, setOrgsList] = useState<Array<{id: string, name: string}>>([]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
-      return;
-    }
+    if (!isAuthenticated) { router.push("/auth/login"); return; }
     fetchProfile();
     fetchMyApplication();
     api.get("/organizations").then(r => setOrgsList(r.data.data)).catch(console.error);
@@ -61,18 +62,10 @@ export default function Profile() {
   const fetchMyApplication = async () => {
     try {
       const res = await api.get("/provider/my-application");
-      if (res.data.success) {
-        setApplication(res.data.data);
-      } else {
-        setApplication(false);
-      }
+      if (res.data.success) setApplication(res.data.data);
+      else setApplication(false);
     } catch (error) {
-      const err = error as AxiosError<{ code: string }>;
-      if (err.response?.status === 404) {
-        setApplication(false); // ariza yo'q
-      } else {
-        setApplication(false);
-      }
+      setApplication(false);
     }
   };
 
@@ -83,7 +76,6 @@ export default function Profile() {
       if (res.data.success) {
         toast.success("Profil yangilandi!");
         setProfile({ ...profile, ...res.data.data });
-        // Update auth store too
         const token = localStorage.getItem("accessToken") || "";
         const refreshToken = localStorage.getItem("refreshToken") || "";
         setAuth({ ...authUser!, name: res.data.data.name, username: res.data.data.username }, token, refreshToken);
@@ -97,9 +89,9 @@ export default function Profile() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case "SUPER_ADMIN": return { label: "Super Admin", color: "bg-red-100 text-red-700 border-red-200" };
-      case "PROVIDER": return { label: "Provayder", color: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-      default: return { label: "Foydalanuvchi", color: "bg-blue-100 text-blue-700 border-blue-200" };
+      case "SUPER_ADMIN": return { label: "Super Admin", color: "bg-red-500/10 text-red-500 border-red-500/20" };
+      case "PROVIDER": return { label: "Provayder", color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" };
+      default: return { label: "Foydalanuvchi", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" };
     }
   };
 
@@ -132,122 +124,98 @@ export default function Profile() {
   const handleOpenAdminChat = async () => {
     try {
       const res = await api.post("/my/admin-chat");
-      if (res.data.success) {
-        router.push("/admin-chat");
-      }
+      if (res.data.success) router.push("/admin-chat");
     } catch (error) {
       toast.error("Admin chat ochishda xatolik");
     }
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+    </div>
+  );
   if (!profile) return null;
 
   const roleBadge = getRoleBadge(profile.role);
   const providerProfile = profile.providerProfile;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 fade-in">
       {/* Profile Header */}
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-full"></div>
-        
+      <div className="glass-card p-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-full" />
+
         <div className="relative flex flex-col md:flex-row gap-6 items-start">
-          <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-            {profile.avatar ? (
-              <img src={`http://localhost:5000${profile.avatar}`} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
-            ) : (
-              profile.name.charAt(0).toUpperCase()
-            )}
-          </div>
+          <Avatar name={profile.name} avatar={profile.avatar} size="xl" />
 
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               {editing ? (
                 <form onSubmit={handleUpdateProfile} className="flex flex-col gap-2 w-full max-w-sm">
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Ism"
-                    className="text-lg font-bold border-b border-blue-500 focus:outline-none bg-transparent"
-                    autoFocus
-                  />
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Familya"
-                    className="text-lg font-bold border-b border-blue-500 focus:outline-none bg-transparent"
-                  />
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Username"
-                    className="text-lg font-bold border-b border-blue-500 focus:outline-none bg-transparent"
-                  />
+                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Ism"
+                    className="glass-input text-lg font-bold" autoFocus />
+                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Familya"
+                    className="glass-input text-lg font-bold" />
+                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username"
+                    className="glass-input text-lg font-bold" />
                   <div className="flex gap-2 mt-2">
-                    <button type="submit" className="text-blue-600 hover:text-blue-800 text-sm font-medium">Saqlash</button>
-                    <button type="button" onClick={() => { 
-                      setEditing(false); 
-                      setFirstName(profile.firstName || ""); 
-                      setLastName(profile.lastName || ""); 
-                      setUsername(profile.username || ""); 
-                    }} className="text-gray-400 hover:text-gray-600 text-sm">Bekor</button>
+                    <button type="submit" className="btn-primary text-sm py-2">Saqlash</button>
+                    <button type="button" onClick={() => {
+                      setEditing(false);
+                      setFirstName(profile.firstName || "");
+                      setLastName(profile.lastName || "");
+                      setUsername(profile.username || "");
+                    }} className="btn-ghost text-sm py-2">Bekor</button>
                   </div>
                 </form>
               ) : (
                 <>
-                  <h1 className="text-2xl font-bold">{profile.name}</h1>
-                  <div className={`w-3 h-3 rounded-full ${profile.isOnline ? 'bg-green-500' : 'bg-gray-300'}`} title={profile.isOnline ? 'Online' : 'Offline'}></div>
-                  <button onClick={() => setEditing(true)} className="text-gray-400 hover:text-blue-600 transition-colors ml-2">
+                  <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>{profile.name}</h1>
+                  <div className={`w-3 h-3 rounded-full ${profile.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} title={profile.isOnline ? 'Online' : 'Offline'} />
+                  <button onClick={() => setEditing(true)} className="p-1.5 rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors" style={{ color: "var(--muted)" }}>
                     <Edit3 size={16} />
                   </button>
                 </>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
-              <div className="flex items-center gap-1.5 font-medium text-blue-600">
-                <span>@{profile.username}</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded">
-                <span className="font-mono text-xs">ID: {profile.walletId}</span>
-                <button onClick={() => { navigator.clipboard.writeText(profile.walletId); toast.success("Nusxalandi"); }} className="text-gray-400 hover:text-gray-700">
+            <div className="flex flex-wrap items-center gap-4 text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+              <span className="font-medium text-blue-500">@{profile.username}</span>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                <span className="font-mono text-xs" style={{ color: "var(--muted)" }}>ID: {profile.walletId}</span>
+                <button onClick={() => { navigator.clipboard.writeText(profile.walletId); toast.success("Nusxalandi"); }}
+                  className="hover:text-blue-500 transition-colors" style={{ color: "var(--muted)" }}>
                   <Copy size={12} />
                 </button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-              <div className="flex items-center gap-1.5">
-                <Mail size={14} />
-                <span>{profile.email}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Calendar size={14} />
-                <span>A'zo: {new Date(profile.createdAt).toLocaleDateString("uz-UZ")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Star size={14} className="text-yellow-500" />
-                <span>{profile.reliability?.toFixed(1)}% ishonchlilik</span>
-              </div>
+            <div className="flex flex-wrap items-center gap-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+              <div className="flex items-center gap-1.5"><Mail size={14} /><span>{profile.email}</span></div>
+              <div className="flex items-center gap-1.5"><Calendar size={14} /><span>A'zo: {new Date(profile.createdAt).toLocaleDateString("uz-UZ")}</span></div>
+              <div className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" /><span>{profile.reliability?.toFixed(1)}% ishonchlilik</span></div>
             </div>
 
-            {/* User statistikasi */}
+            {/* Stats */}
             <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-center">
-                <div className="text-lg font-extrabold text-blue-700">{Math.round(profile.reliability || 100)}%</div>
-                <div className="text-[10px] text-blue-500 font-medium">📊 Ishonchlilik</div>
+              <div className="glass-card p-3 text-center !rounded-xl">
+                <div className="text-lg font-extrabold text-blue-500">{Math.round(profile.reliability || 100)}%</div>
+                <div className="text-[10px] font-medium flex items-center justify-center gap-1" style={{ color: "var(--muted)" }}>
+                  <BarChart3 size={10} /> Ishonchlilik
+                </div>
               </div>
-              <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2 text-center">
-                <div className="text-lg font-extrabold text-green-700">{profile.successfulOrders ?? 0}</div>
-                <div className="text-[10px] text-green-500 font-medium">✅ Muvaffaqiyatli</div>
+              <div className="glass-card p-3 text-center !rounded-xl">
+                <div className="text-lg font-extrabold text-green-500">{profile.successfulOrders ?? 0}</div>
+                <div className="text-[10px] font-medium flex items-center justify-center gap-1" style={{ color: "var(--muted)" }}>
+                  <CheckCircle size={10} /> Muvaffaqiyatli
+                </div>
               </div>
-              <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-center">
-                <div className="text-lg font-extrabold text-red-600">{profile.cancelledOrders ?? 0}</div>
-                <div className="text-[10px] text-red-400 font-medium">❌ Bekor qilingan</div>
+              <div className="glass-card p-3 text-center !rounded-xl">
+                <div className="text-lg font-extrabold text-red-500">{profile.cancelledOrders ?? 0}</div>
+                <div className="text-[10px] font-medium flex items-center justify-center gap-1" style={{ color: "var(--muted)" }}>
+                  <XCircle size={10} /> Bekor qilingan
+                </div>
               </div>
             </div>
 
@@ -255,116 +223,95 @@ export default function Profile() {
               <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${roleBadge.color}`}>
                 {roleBadge.label}
               </span>
-              <button
-                onClick={handleOpenAdminChat}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-bold transition-colors border border-blue-200"
-              >
-                <MessageSquare size={14} />
-                Admin bilan bog'lanish
+              <button onClick={handleOpenAdminChat}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-full text-xs font-bold transition-colors border border-blue-500/20">
+                <MessageSquare size={14} /> Admin bilan bog'lanish
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── Provider Status Section ─────────────────────────────────── */}
-
-      {/* 1. USER + ariza yo'q → CTA */}
+      {/* Provider Status Section */}
       {profile.role === "USER" && application === false && (
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-8 rounded-3xl border border-emerald-100">
+        <div className="glass-card p-8 bg-gradient-to-r from-emerald-500/10 to-teal-500/10">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
-              <h2 className="text-xl font-bold text-emerald-900 mb-2">Provayder bo'lmoqchimisiz?</h2>
-              <p className="text-emerald-700">O'z mahoratingizni taklif qiling va yangi mijozlar toping!</p>
+              <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>Provayder bo'lmoqchimisiz?</h2>
+              <p style={{ color: "var(--text-secondary)" }}>O'z mahoratingizni taklif qiling va yangi mijozlar toping!</p>
             </div>
-            <Link
-              href="/profile/become-provider"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md whitespace-nowrap"
-            >
-              🚀 Provayder bo'lish
+            <Link href="/profile/become-provider" className="btn-success px-6 py-3 font-bold whitespace-nowrap">
+              <Rocket size={18} /> Provayder bo'lish
             </Link>
           </div>
         </div>
       )}
 
-      {/* 2. Ariza PENDING */}
       {application && (application as Record<string, any>).status === "PENDING" && (
-        <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-2xl text-center">
-          <div className="text-3xl mb-2">🟡</div>
-          <h3 className="text-lg font-bold text-yellow-800 mb-1">Arizangiz ko'rib chiqilmoqda...</h3>
-          <p className="text-yellow-700 text-sm max-w-md mx-auto">
+        <div className="glass-card p-6 text-center bg-yellow-500/5">
+          <Clock className="mx-auto mb-3 text-yellow-500" size={32} />
+          <h3 className="text-lg font-bold mb-1" style={{ color: "var(--text)" }}>Arizangiz ko'rib chiqilmoqda...</h3>
+          <p className="text-sm max-w-md mx-auto" style={{ color: "var(--text-secondary)" }}>
             Sizning provayder bo'lish arizangiz adminlar tomonidan ko'rib chiqilmoqda.
-            Natija bo'yicha xabarnoma olasiz.
           </p>
         </div>
       )}
 
-      {/* 3. Ariza REJECTED */}
       {application && (application as Record<string, any>).status === "REJECTED" && (
-        <div className="bg-red-50 border border-red-200 p-6 rounded-2xl">
-          <div className="text-3xl mb-2">❌</div>
-          <h3 className="text-lg font-bold text-red-800 mb-2">Arizangiz rad etildi</h3>
-          <p className="text-red-700 text-sm mb-4">
+        <div className="glass-card p-6 bg-red-500/5">
+          <XCircle className="text-red-500 mb-3" size={32} />
+          <h3 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>Arizangiz rad etildi</h3>
+          <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
             Sabab: {(application as Record<string, any>).rejectionNote || "Ko'rsatilmagan"}
           </p>
-          <Link
-            href="/profile/become-provider"
-            className="inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            Qayta ariza berish
-          </Link>
+          <Link href="/profile/become-provider" className="btn-danger text-sm">Qayta ariza berish</Link>
         </div>
       )}
 
-      {/* 4. PROVIDER → Badge + Dashboard tugmasi */}
       {profile.role === "PROVIDER" && (
-        <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="glass-card p-6 flex flex-col md:flex-row items-center justify-between gap-4 bg-emerald-500/5">
           <div className="flex items-center gap-3">
-            <div className="text-3xl">✅</div>
+            <Award className="text-emerald-500" size={28} />
             <div>
-              <span className="inline-block bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-1">Provayder</span>
-              <p className="text-emerald-800 text-sm">Siz tasdiqlangan provaydersiz. Dashboard orqali xizmatlaringizni boshqaring.</p>
+              <span className="inline-block bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full mb-1">Provayder</span>
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Siz tasdiqlangan provaydersiz.</p>
             </div>
           </div>
-          <Link
-            href="/provider/dashboard"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md whitespace-nowrap text-sm"
-          >
-            Provayder dashboard →
+          <Link href="/provider/dashboard" className="btn-success text-sm whitespace-nowrap">
+            Provayder dashboard
           </Link>
         </div>
       )}
 
       {providerProfile && providerProfile.status === "APPROVED" && (
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+        <div className="glass-card p-8 space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Briefcase size={22} className="text-emerald-600" />
-              Provayder profili
+            <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--text)" }}>
+              <Briefcase size={22} className="text-emerald-500" /> Provayder profili
             </h2>
-            <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200">
-              Tasdiqlangan ✓
+            <span className="glass-badge bg-emerald-500/10 text-emerald-500">
+              <CheckCircle size={12} /> Tasdiqlangan
             </span>
           </div>
 
           {providerProfile.bio && (
             <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-1">Bio</h4>
-              <p className="text-gray-800">{providerProfile.bio}</p>
+              <h4 className="text-sm font-medium mb-1" style={{ color: "var(--muted)" }}>Bio</h4>
+              <p style={{ color: "var(--text)" }}>{providerProfile.bio}</p>
             </div>
           )}
 
           <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-2">Xizmatlar</h4>
+            <h4 className="text-sm font-medium mb-2" style={{ color: "var(--muted)" }}>Xizmatlar</h4>
             <div className="space-y-2">
               {providerProfile.providerSkills?.map((ps: Record<string, any>) => (
-                <div key={ps.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                <div key={ps.id} className="flex justify-between items-center p-3 rounded-xl" style={{ backgroundColor: "var(--sidebar-hover)" }}>
                   <div className="flex items-center gap-2">
                     <CheckCircle size={16} className="text-emerald-500" />
-                    <span className="font-medium">{ps.skill?.name}</span>
-                    <span className="text-xs text-gray-400">({ps.skill?.category?.name})</span>
+                    <span className="font-medium" style={{ color: "var(--text)" }}>{ps.skill?.name}</span>
+                    <span className="text-xs" style={{ color: "var(--muted)" }}>({ps.skill?.category?.name})</span>
                   </div>
-                  <span className="text-sm text-blue-600 font-medium">
+                  <span className="text-sm text-blue-500 font-medium">
                     {ps.priceFrom ? `${ps.priceFrom.toLocaleString()} so'm` : "Kelishuv"}
                     {ps.priceTo ? ` - ${ps.priceTo.toLocaleString()} so'm` : ""}
                   </span>
@@ -374,24 +321,22 @@ export default function Profile() {
           </div>
 
           <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-1">
+            <h4 className="text-sm font-medium mb-2 flex items-center gap-1" style={{ color: "var(--muted)" }}>
               <MapPin size={14} /> Xizmat hududlari
             </h4>
             <div className="flex flex-wrap gap-2">
               {providerProfile.districts?.map((d: Record<string, any>) => (
-                <span key={d.id} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-sm font-medium">
-                  {d.districtName}
-                </span>
+                <span key={d.id} className="glass-chip">{d.districtName}</span>
               ))}
             </div>
           </div>
 
           {providerProfile.portfolio?.length > 0 && (
             <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Portfolio</h4>
+              <h4 className="text-sm font-medium mb-2" style={{ color: "var(--muted)" }}>Portfolio</h4>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {providerProfile.portfolio.map((img: Record<string, any>) => (
-                  <div key={img.id} className="aspect-square rounded-xl overflow-hidden bg-gray-100">
+                  <div key={img.id} className="aspect-square rounded-xl overflow-hidden" style={{ backgroundColor: "var(--skeleton)" }}>
                     <img src={`http://localhost:5000${img.imageUrl}`} alt="Portfolio" className="w-full h-full object-cover" />
                   </div>
                 ))}
@@ -400,44 +345,46 @@ export default function Profile() {
           )}
 
           {/* Organizations Section */}
-          <div className="pt-6 border-t border-gray-100">
+          <div className="pt-6" style={{ borderTop: "1px solid var(--border-strong)" }}>
             <div className="flex justify-between items-center mb-4">
-              <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                🏢 Tashkilotlar
+              <h4 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--text)" }}>
+                <Building size={20} /> Tashkilotlar
               </h4>
               <div className="flex gap-2">
-                <button onClick={() => setShowJoinOrg(true)} className="text-sm bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-100 font-medium">Qo'shilish</button>
-                <button onClick={() => setShowCreateOrg(true)} className="text-sm bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 font-medium">Yaratish</button>
+                <button onClick={() => setShowJoinOrg(true)} className="btn-ghost text-xs py-1.5 px-3">Qo'shilish</button>
+                <button onClick={() => setShowCreateOrg(true)} className="btn-success text-xs py-1.5 px-3">Yaratish</button>
               </div>
             </div>
 
             <div className="space-y-3">
               {providerProfile.adminOfOrganizations?.map((org: Record<string, any>) => (
-                <div key={org.id} className="flex justify-between items-center p-3 bg-white border border-gray-200 rounded-xl">
+                <div key={org.id} className="flex justify-between items-center p-3 glass-card !rounded-xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold">{org.name[0]}</div>
+                    <div className="w-10 h-10 bg-indigo-500/10 text-indigo-500 rounded-lg flex items-center justify-center font-bold">{org.name[0]}</div>
                     <div>
-                      <div className="font-bold text-gray-900">{org.name} <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded ml-1">ADMIN</span></div>
-                      <div className="text-xs text-gray-500">Reyting: {org.rating} • Ishonch: {org.reliability}%</div>
+                      <div className="font-bold text-sm" style={{ color: "var(--text)" }}>
+                        {org.name} <span className="text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded ml-1">ADMIN</span>
+                      </div>
+                      <div className="text-xs" style={{ color: "var(--muted)" }}>Reyting: {org.rating} | Ishonch: {org.reliability}%</div>
                     </div>
                   </div>
                 </div>
               ))}
-              
+
               {providerProfile.memberOfOrganizations?.map((m: Record<string, any>) => (
-                <div key={m.id} className="flex justify-between items-center p-3 bg-white border border-gray-200 rounded-xl">
+                <div key={m.id} className="flex justify-between items-center p-3 glass-card !rounded-xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center font-bold">{m.organization.name[0]}</div>
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold" style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text-secondary)" }}>{m.organization.name[0]}</div>
                     <div>
-                      <div className="font-bold text-gray-900">{m.organization.name}</div>
-                      <div className="text-xs text-gray-500">Status: {m.status}</div>
+                      <div className="font-bold text-sm" style={{ color: "var(--text)" }}>{m.organization.name}</div>
+                      <div className="text-xs" style={{ color: "var(--muted)" }}>Status: {m.status}</div>
                     </div>
                   </div>
                 </div>
               ))}
 
               {providerProfile.adminOfOrganizations?.length === 0 && providerProfile.memberOfOrganizations?.length === 0 && (
-                <p className="text-sm text-gray-500 italic">Siz hozircha hech qanday tashkilotga a'zo emassiz.</p>
+                <p className="text-sm italic" style={{ color: "var(--muted)" }}>Siz hozircha hech qanday tashkilotga a'zo emassiz.</p>
               )}
             </div>
           </div>
@@ -447,20 +394,20 @@ export default function Profile() {
       {/* Create Org Modal */}
       {showCreateOrg && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Tashkilot yaratish</h2>
+          <div className="glass-modal p-6 w-full max-w-md fade-in">
+            <h2 className="text-xl font-bold mb-4" style={{ color: "var(--text)" }}>Tashkilot yaratish</h2>
             <form onSubmit={handleCreateOrg} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Nomi</label>
-                <input required value={orgName} onChange={e => setOrgName(e.target.value)} className="w-full border rounded-lg p-2" />
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Nomi</label>
+                <input required value={orgName} onChange={e => setOrgName(e.target.value)} className="glass-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Tavsif</label>
-                <textarea value={orgDesc} onChange={e => setOrgDesc(e.target.value)} className="w-full border rounded-lg p-2" rows={3}></textarea>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tavsif</label>
+                <textarea value={orgDesc} onChange={e => setOrgDesc(e.target.value)} className="glass-textarea" rows={3} />
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={() => setShowCreateOrg(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Bekor</button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg">Ariza yuborish</button>
+                <button type="button" onClick={() => setShowCreateOrg(false)} className="btn-ghost">Bekor</button>
+                <button type="submit" className="btn-success">Ariza yuborish</button>
               </div>
             </form>
           </div>
@@ -470,23 +417,23 @@ export default function Profile() {
       {/* Join Org Modal */}
       {showJoinOrg && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Tashkilotga qo'shilish</h2>
+          <div className="glass-modal p-6 w-full max-w-md fade-in">
+            <h2 className="text-xl font-bold mb-4" style={{ color: "var(--text)" }}>Tashkilotga qo'shilish</h2>
             <form onSubmit={handleJoinOrg} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Tashkilotni tanlang</label>
-                <select required value={orgJoinId} onChange={e => setOrgJoinId(e.target.value)} className="w-full border rounded-lg p-2">
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tashkilotni tanlang</label>
+                <select required value={orgJoinId} onChange={e => setOrgJoinId(e.target.value)} className="glass-input">
                   <option value="">Tanlang...</option>
                   {orgsList.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Xabar (ixtiyoriy)</label>
-                <textarea value={orgJoinMsg} onChange={e => setOrgJoinMsg(e.target.value)} className="w-full border rounded-lg p-2" rows={2}></textarea>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Xabar (ixtiyoriy)</label>
+                <textarea value={orgJoinMsg} onChange={e => setOrgJoinMsg(e.target.value)} className="glass-textarea" rows={2} />
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={() => setShowJoinOrg(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Bekor</button>
-                <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Ariza yuborish</button>
+                <button type="button" onClick={() => setShowJoinOrg(false)} className="btn-ghost">Bekor</button>
+                <button type="submit" className="btn-primary">Ariza yuborish</button>
               </div>
             </form>
           </div>

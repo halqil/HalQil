@@ -4,7 +4,8 @@
       "Bash(mkdir -p \"C:\\\\Users\\\\abdug\\\\proekt\\\\HalQil\\\\apps\\\\web\\\\src\\\\app\\\\settings\" 2>/dev/null; echo \"done\")",
       "Bash(npx prisma *)",
       "Bash(npx tsc *)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(Test-Path \"C:\\\\Users\\\\abdug\\\\proekt\\\\HalQil\\\\apps\\\\api\\\\uploads\\\\avatars\")"
     ]
   }
 }

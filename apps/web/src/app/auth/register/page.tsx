@@ -3,6 +3,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
+import {
+  Eye, EyeOff, Loader2, CheckCircle, XCircle, LifeBuoy,
+  X, Send, Zap, ArrowLeft, ArrowRight
+} from 'lucide-react';
 
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
   let score = 0;
@@ -60,11 +64,8 @@ export default function RegisterPage() {
     try {
       const res = await api.get(`/auth/check-phone?phone=${encodeURIComponent(raw)}`);
       setPhoneStatus(res.data.data.available ? 'available' : 'taken');
-      if (!res.data.data.available) {
-        setErrors((p) => ({ ...p, phone: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" }));
-      } else {
-        setErrors((p) => { const e = { ...p }; delete e.phone; return e; });
-      }
+      if (!res.data.data.available) setErrors((p) => ({ ...p, phone: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" }));
+      else setErrors((p) => { const e = { ...p }; delete e.phone; return e; });
     } catch { setPhoneStatus('idle'); }
   };
 
@@ -75,11 +76,8 @@ export default function RegisterPage() {
       try {
         const res = await api.get(`/auth/check-username?username=${username}`);
         setUsernameStatus(res.data.data.available ? 'available' : 'taken');
-        if (!res.data.data.available) {
-          setErrors((p) => ({ ...p, username: 'Bu username band, boshqa tanlang' }));
-        } else {
-          setErrors((p) => { const e = { ...p }; delete e.username; return e; });
-        }
+        if (!res.data.data.available) setErrors((p) => ({ ...p, username: 'Bu username band, boshqa tanlang' }));
+        else setErrors((p) => { const e = { ...p }; delete e.username; return e; });
       } catch { setUsernameStatus('idle'); }
     }, 500);
     return () => clearTimeout(t);
@@ -88,9 +86,9 @@ export default function RegisterPage() {
   const validateStep1 = () => {
     const e: Record<string, string> = {};
     if (firstName.trim().length < 2) e.firstName = "Ism kamida 2 harf bo'lishi kerak";
-    else if (!/^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/.test(firstName)) e.firstName = "Ism faqat harflardan iborat bo'lishi kerak";
+    else if (!/^[a-zA-ZЀ-ӿ\s]+$/.test(firstName)) e.firstName = "Ism faqat harflardan iborat bo'lishi kerak";
     if (lastName.trim().length < 2) e.lastName = "Familya kamida 2 harf bo'lishi kerak";
-    else if (!/^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/.test(lastName)) e.lastName = "Familya faqat harflardan iborat bo'lishi kerak";
+    else if (!/^[a-zA-ZЀ-ӿ\s]+$/.test(lastName)) e.lastName = "Familya faqat harflardan iborat bo'lishi kerak";
     const digits = phone.replace(/\D/g, '');
     if (digits.length < 12) e.phone = "Telefon raqam to'liq kiritilmagan";
     if (phoneStatus === 'taken') e.phone = "Bu telefon raqam allaqachon ro'yxatdan o'tgan";
@@ -118,11 +116,8 @@ export default function RegisterPage() {
       const digits = phone.replace(/\D/g, '');
       const formattedPhone = '+998' + (digits.startsWith('998') ? digits.slice(3) : digits);
       const res = await api.post('/auth/register', {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: formattedPhone,
-        username: username.toLowerCase(),
-        password,
+        firstName: firstName.trim(), lastName: lastName.trim(),
+        phone: formattedPhone, username: username.toLowerCase(), password,
       });
       localStorage.setItem('accessToken', res.data.data.accessToken);
       localStorage.setItem('refreshToken', res.data.data.refreshToken);
@@ -145,152 +140,144 @@ export default function RegisterPage() {
   const strength = getPasswordStrength(password);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: "var(--bg)" }}>
+      <div className="glass-modal w-full max-w-md p-8 fade-in">
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500">
+            <span className="text-sm font-medium" style={{ color: "var(--muted)" }}>
               {step === 1 ? "1-bosqich: Shaxsiy ma'lumotlar" : "2-bosqich: Login ma'lumotlari"}
             </span>
-            <span className="text-sm text-gray-400">{step}/2</span>
+            <span className="text-sm" style={{ color: "var(--muted)" }}>{step}/2</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: step === 1 ? '50%' : '100%' }} />
+          <div className="w-full rounded-full h-2" style={{ backgroundColor: "var(--skeleton)" }}>
+            <div className="bg-blue-500 h-2 rounded-full transition-all duration-300" style={{ width: step === 1 ? '50%' : '100%' }} />
           </div>
         </div>
 
         {step === 1 ? (
           <>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Salom! Tanishamiz 👋</h1>
-            <p className="text-gray-500 mb-6">Ismingiz va telefon raqamingizni kiriting</p>
+            <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>Salom! Tanishamiz</h1>
+            <p className="mb-6" style={{ color: "var(--muted)" }}>Ismingiz va telefon raqamingizni kiriting</p>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ismingiz</label>
-              <input
-                type="text" value={firstName}
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ismingiz</label>
+              <input type="text" value={firstName}
                 onChange={(e) => { setFirstName(e.target.value); setErrors((p) => { const x = { ...p }; delete x.firstName; return x; }); }}
                 onBlur={() => {
                   if (firstName.trim().length < 2) setErrors((p) => ({ ...p, firstName: "Ism kamida 2 harf bo'lishi kerak" }));
-                  else if (!/^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/.test(firstName)) setErrors((p) => ({ ...p, firstName: "Ism faqat harflardan iborat bo'lishi kerak" }));
+                  else if (!/^[a-zA-ZЀ-ӿ\s]+$/.test(firstName)) setErrors((p) => ({ ...p, firstName: "Ism faqat harflardan iborat bo'lishi kerak" }));
                 }}
                 placeholder="Masalan: Abdug'afur"
-                className={`w-full px-4 py-3 rounded-xl border ${errors.firstName ? 'border-red-400 bg-red-50' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
-              />
-              {errors.firstName && <p className="text-red-500 text-xs mt-1">❌ {errors.firstName}</p>}
+                className={`glass-input py-3 ${errors.firstName ? '!border-red-500 bg-red-500/5' : ''}`} />
+              {errors.firstName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><XCircle size={12} /> {errors.firstName}</p>}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Familyangiz</label>
-              <input
-                type="text" value={lastName}
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Familyangiz</label>
+              <input type="text" value={lastName}
                 onChange={(e) => { setLastName(e.target.value); setErrors((p) => { const x = { ...p }; delete x.lastName; return x; }); }}
                 onBlur={() => {
                   if (lastName.trim().length < 2) setErrors((p) => ({ ...p, lastName: "Familya kamida 2 harf bo'lishi kerak" }));
-                  else if (!/^[a-zA-ZА-Яа-яЎўҚқҒғҲҳ\s]+$/.test(lastName)) setErrors((p) => ({ ...p, lastName: "Familya faqat harflardan iborat bo'lishi kerak" }));
+                  else if (!/^[a-zA-ZЀ-ӿ\s]+$/.test(lastName)) setErrors((p) => ({ ...p, lastName: "Familya faqat harflardan iborat bo'lishi kerak" }));
                 }}
                 placeholder="Masalan: Toshmatov"
-                className={`w-full px-4 py-3 rounded-xl border ${errors.lastName ? 'border-red-400 bg-red-50' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
-              />
-              {errors.lastName && <p className="text-red-500 text-xs mt-1">❌ {errors.lastName}</p>}
+                className={`glass-input py-3 ${errors.lastName ? '!border-red-500 bg-red-500/5' : ''}`} />
+              {errors.lastName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><XCircle size={12} /> {errors.lastName}</p>}
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telefon raqam</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Telefon raqam</label>
               <div className="relative">
-                <input
-                  type="tel" value={phone}
-                  onChange={handlePhoneChange} onBlur={handlePhoneBlur}
+                <input type="tel" value={phone} onChange={handlePhoneChange} onBlur={handlePhoneBlur}
                   placeholder="+998 90 123-45-67" maxLength={17}
-                  className={`w-full px-4 py-3 rounded-xl border ${errors.phone ? 'border-red-400 bg-red-50' : phoneStatus === 'available' ? 'border-green-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
-                />
-                {phoneStatus === 'checking' && <span className="absolute right-3 top-3 text-gray-400 text-sm">🔄</span>}
-                {phoneStatus === 'available' && <span className="absolute right-3 top-3 text-green-500">✅</span>}
-                {phoneStatus === 'taken' && <span className="absolute right-3 top-3 text-red-500">❌</span>}
+                  className={`glass-input py-3 pr-10 ${errors.phone ? '!border-red-500 bg-red-500/5' : phoneStatus === 'available' ? '!border-green-500' : ''}`} />
+                {phoneStatus === 'checking' && <span className="absolute right-3 top-3"><Loader2 size={16} className="animate-spin" style={{ color: "var(--muted)" }} /></span>}
+                {phoneStatus === 'available' && <span className="absolute right-3 top-3"><CheckCircle size={16} className="text-green-500" /></span>}
+                {phoneStatus === 'taken' && <span className="absolute right-3 top-3"><XCircle size={16} className="text-red-500" /></span>}
               </div>
-              {errors.phone && <p className="text-red-500 text-xs mt-1">❌ {errors.phone}</p>}
+              {errors.phone && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><XCircle size={12} /> {errors.phone}</p>}
             </div>
 
-            <button onClick={() => { if (validateStep1()) setStep(2); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition">
-              Keyingi →
+            <button onClick={() => { if (validateStep1()) setStep(2); }} className="btn-primary w-full py-3 rounded-xl">
+              Keyingi <ArrowRight size={16} />
             </button>
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Deyarli tayyor! 🎉</h1>
-            <p className="text-gray-500 mb-6">Username va parol o&apos;rnating</p>
+            <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>Deyarli tayyor!</h1>
+            <p className="mb-6" style={{ color: "var(--muted)" }}>Username va parol o&apos;rnating</p>
 
             {errors.general && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                <p className="text-red-600 text-sm">❌ {errors.general}</p>
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4">
+                <p className="text-red-500 text-sm flex items-center gap-1"><XCircle size={14} /> {errors.general}</p>
               </div>
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Username</label>
               <div className="relative">
-                <span className="absolute left-4 top-3 text-gray-400 font-medium">@</span>
-                <input
-                  type="text" value={username}
+                <span className="absolute left-3 top-3 font-medium" style={{ color: "var(--muted)" }}>@</span>
+                <input type="text" value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
                   placeholder="masalan: abdug_001"
-                  className={`w-full pl-8 pr-24 py-3 rounded-xl border ${errors.username || usernameStatus === 'taken' ? 'border-red-400 bg-red-50' : usernameStatus === 'available' ? 'border-green-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
-                />
-                {usernameStatus === 'checking' && <span className="absolute right-3 top-3 text-gray-400 text-sm">🔄</span>}
-                {usernameStatus === 'available' && <span className="absolute right-3 top-3 text-green-500 text-sm">✅ Bo&apos;sh</span>}
-                {usernameStatus === 'taken' && <span className="absolute right-3 top-3 text-red-500 text-sm">❌ Band</span>}
+                  className={`glass-input py-3 pl-8 pr-24 ${errors.username || usernameStatus === 'taken' ? '!border-red-500 bg-red-500/5' : usernameStatus === 'available' ? '!border-green-500' : ''}`} />
+                {usernameStatus === 'checking' && <span className="absolute right-3 top-3"><Loader2 size={14} className="animate-spin" style={{ color: "var(--muted)" }} /></span>}
+                {usernameStatus === 'available' && <span className="absolute right-3 top-3 text-xs text-green-500 flex items-center gap-1"><CheckCircle size={12} /> Bo&apos;sh</span>}
+                {usernameStatus === 'taken' && <span className="absolute right-3 top-3 text-xs text-red-500 flex items-center gap-1"><XCircle size={12} /> Band</span>}
               </div>
-              {errors.username && <p className="text-red-500 text-xs mt-1">❌ {errors.username}</p>}
+              {errors.username && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><XCircle size={12} /> {errors.username}</p>}
             </div>
 
             <div className="mb-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parol</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Parol</label>
               <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'} value={password}
+                <input type={showPassword ? 'text' : 'password'} value={password}
                   onChange={(e) => { setPassword(e.target.value); setErrors((p) => { const x = { ...p }; delete x.password; return x; }); }}
                   placeholder="Kamida 8 belgi, katta/kichik harf va raqam"
-                  className={`w-full px-4 py-3 pr-10 rounded-xl border ${errors.password ? 'border-red-400 bg-red-50' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400">
-                  {showPassword ? '🙈' : '👁'}
+                  className={`glass-input py-3 pr-10 ${errors.password ? '!border-red-500 bg-red-500/5' : ''}`} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3" style={{ color: "var(--muted)" }}>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {errors.password && <p className="text-red-500 text-xs mt-1">❌ {errors.password}</p>}
+              {errors.password && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><XCircle size={12} /> {errors.password}</p>}
             </div>
 
             {password.length > 0 && (
               <div className="mb-4">
                 <div className="flex gap-1 mb-1">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= strength.score ? strength.color : 'bg-gray-200'} transition-all`} />
+                    <div key={i} className={`h-1.5 flex-1 rounded-full transition-all ${i <= strength.score ? strength.color : ''}`}
+                      style={{ backgroundColor: i <= strength.score ? undefined : 'var(--skeleton)' }} />
                   ))}
                 </div>
-                <p className={`text-xs ${strength.score <= 2 ? 'text-red-500' : strength.score <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>{strength.label}</p>
+                <p className={`text-xs ${strength.score <= 2 ? 'text-red-500' : strength.score <= 3 ? 'text-yellow-600' : 'text-green-500'}`}>{strength.label}</p>
               </div>
             )}
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parolni tasdiqlang</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Parolni tasdiqlang</label>
               <div className="relative">
-                <input
-                  type={showConfirm ? 'text' : 'password'} value={confirmPassword}
+                <input type={showConfirm ? 'text' : 'password'} value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); setErrors((p) => { const x = { ...p }; delete x.confirmPassword; return x; }); }}
                   placeholder="Parolni qayta kiriting"
-                  className={`w-full px-4 py-3 pr-10 rounded-xl border ${errors.confirmPassword ? 'border-red-400 bg-red-50' : confirmPassword && password === confirmPassword ? 'border-green-400' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 transition`}
-                />
-                <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-3 text-gray-400">
-                  {showConfirm ? '🙈' : '👁'}
+                  className={`glass-input py-3 pr-10 ${errors.confirmPassword ? '!border-red-500 bg-red-500/5' : confirmPassword && password === confirmPassword ? '!border-green-500' : ''}`} />
+                <button type="button" onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-3" style={{ color: "var(--muted)" }}>
+                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">❌ {errors.confirmPassword}</p>}
-              {confirmPassword && password === confirmPassword && <p className="text-green-500 text-xs mt-1">✅ Parollar mos keldi</p>}
+              {errors.confirmPassword && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><XCircle size={12} /> {errors.confirmPassword}</p>}
+              {confirmPassword && password === confirmPassword && <p className="text-green-500 text-xs mt-1 flex items-center gap-1"><CheckCircle size={12} /> Parollar mos keldi</p>}
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="flex-1 border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition">← Orqaga</button>
+              <button onClick={() => setStep(1)} className="btn-ghost flex-1 py-3 rounded-xl">
+                <ArrowLeft size={16} /> Orqaga
+              </button>
               <button onClick={handleSubmit} disabled={loading || usernameStatus === 'taken'}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                {loading ? <span className="animate-spin">⏳</span> : null}
+                className="btn-primary flex-1 py-3 rounded-xl">
+                {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                 {loading ? 'Yuklanmoqda...' : "Ro'yxatdan o'tish"}
               </button>
             </div>
@@ -298,40 +285,52 @@ export default function RegisterPage() {
         )}
 
         <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px bg-gray-200" />
-          <span className="text-gray-400 text-sm">yoki</span>
-          <div className="flex-1 h-px bg-gray-200" />
+          <div className="flex-1 glass-divider" />
+          <span className="text-sm" style={{ color: "var(--muted)" }}>yoki</span>
+          <div className="flex-1 glass-divider" />
         </div>
 
-        <button onClick={() => setShowSupport(true)} className="w-full border border-gray-200 text-gray-600 py-2.5 rounded-xl hover:bg-gray-50 transition text-sm flex items-center justify-center gap-2">
-          🛟 Yordam kerakmi? Admin bilan bog&apos;laning
+        <button onClick={() => setShowSupport(true)} className="btn-ghost w-full py-2.5 rounded-xl text-sm">
+          <LifeBuoy size={18} /> Yordam kerakmi? Admin bilan bog&apos;laning
         </button>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-sm mt-4" style={{ color: "var(--muted)" }}>
           Allaqachon hisobingiz bormi?{' '}
-          <Link href="/auth/login" className="text-blue-600 font-medium hover:underline">Kirish →</Link>
+          <Link href="/auth/login" className="text-blue-500 font-medium hover:underline">Kirish</Link>
         </p>
       </div>
 
       {showSupport && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold mb-1">Qo&apos;llab-quvvatlash 🛟</h3>
-            <p className="text-gray-500 text-sm mb-4">Muammoingizni yozing, tez orada javob beramiz</p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-modal w-full max-w-sm p-6 fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--text)" }}>
+                <LifeBuoy size={20} className="text-blue-500" /> Qo&apos;llab-quvvatlash
+              </h3>
+              <button onClick={() => setShowSupport(false)} className="p-1.5 rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors" style={{ color: "var(--muted)" }}>
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm mb-4" style={{ color: "var(--muted)" }}>Muammoingizni yozing, tez orada javob beramiz</p>
             {supportSent ? (
               <div className="text-center py-6">
-                <p className="text-2xl mb-2">✅</p>
-                <p className="font-medium text-green-700">Xabaringiz qabul qilindi!</p>
-                <p className="text-gray-500 text-sm mt-1">Tez orada bog&apos;lanamiz</p>
-                <button onClick={() => { setShowSupport(false); setSupportSent(false); setSupportMsg(''); setSupportPhone(''); }} className="mt-4 text-blue-600 text-sm">Yopish</button>
+                <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
+                <p className="font-medium text-green-600">Xabaringiz qabul qilindi!</p>
+                <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>Tez orada bog&apos;lanamiz</p>
+                <button onClick={() => { setShowSupport(false); setSupportSent(false); setSupportMsg(''); setSupportPhone(''); }}
+                  className="mt-4 text-blue-500 text-sm hover:underline">Yopish</button>
               </div>
             ) : (
               <>
-                <textarea value={supportMsg} onChange={(e) => setSupportMsg(e.target.value)} placeholder="Muammoingizni batafsil yozing..." rows={4} className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3" />
-                <input type="tel" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} placeholder="Telefon raqamingiz (ixtiyoriy)" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4" />
+                <textarea value={supportMsg} onChange={(e) => setSupportMsg(e.target.value)}
+                  placeholder="Muammoingizni batafsil yozing..." rows={4} className="glass-textarea mb-3" />
+                <input type="tel" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)}
+                  placeholder="Telefon raqamingiz (ixtiyoriy)" className="glass-input mb-4" />
                 <div className="flex gap-2">
-                  <button onClick={() => setShowSupport(false)} className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-xl text-sm hover:bg-gray-50">Bekor qilish</button>
-                  <button onClick={handleSupportSubmit} disabled={!supportMsg.trim()} className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-sm disabled:opacity-50">Yuborish</button>
+                  <button onClick={() => setShowSupport(false)} className="btn-ghost flex-1 py-2 rounded-xl text-sm">Bekor</button>
+                  <button onClick={handleSupportSubmit} disabled={!supportMsg.trim()} className="btn-primary flex-1 py-2 rounded-xl text-sm">
+                    <Send size={14} /> Yuborish
+                  </button>
                 </div>
               </>
             )}

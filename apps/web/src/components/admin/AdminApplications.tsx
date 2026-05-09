@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 import { AxiosError } from "axios";
-import { Eye, Check, X, MessageSquare, Search, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { Eye, Check, X, MessageSquare, Search, ChevronLeft, ChevronRight, ExternalLink, Clock, CheckCircle, XCircle, Building, Home, RefreshCw } from "lucide-react";
 
 type Application = {
   id: string; status: string; createdAt: string;
@@ -17,17 +17,36 @@ type AppDetail = Application & {
   skills: Array<{ id: string; skillId: string; serviceType: string; experienceYears: number; priceFrom?: number; priceTo?: number; description: string; portfolioImages: string[]; skill: { id: string; name: string; category: { id: string; name: string } }; }>;
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  PENDING: "🟡 Kutilmoqda", APPROVED: "✅ Tasdiqlandi", REJECTED: "❌ Rad etildi"
+const STATUS_BADGE_ICONS: Record<string, { icon: typeof Clock; label: string }> = {
+  PENDING: { icon: Clock, label: "Kutilmoqda" },
+  APPROVED: { icon: CheckCircle, label: "Tasdiqlandi" },
+  REJECTED: { icon: XCircle, label: "Rad etildi" },
 };
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-  APPROVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  REJECTED: "bg-red-50 text-red-700 border-red-200",
+  PENDING: "bg-amber-500/10 text-amber-500",
+  APPROVED: "bg-emerald-500/10 text-emerald-500",
+  REJECTED: "bg-red-500/10 text-red-500",
 };
-const SERVICE_LABELS: Record<string, string> = {
-  ORGANIZED: "🏢 Tashkilotli", UNORGANIZED: "🏠 Uyga boradi", BOTH: "🔄 Ikkalasi", INDEPENDENT: "🔄 Ikkalasi"
+const SERVICE_LABELS_DATA: Record<string, { icon: typeof Building; label: string }> = {
+  ORGANIZED: { icon: Building, label: "Tashkilotli" },
+  UNORGANIZED: { icon: Home, label: "Uyga boradi" },
+  BOTH: { icon: RefreshCw, label: "Ikkalasi" },
+  INDEPENDENT: { icon: RefreshCw, label: "Ikkalasi" },
 };
+
+function StatusBadge({ status }: { status: string }) {
+  const data = STATUS_BADGE_ICONS[status];
+  if (!data) return null;
+  const Icon = data.icon;
+  return <span className="inline-flex items-center gap-1"><Icon size={12} /> {data.label}</span>;
+}
+
+function ServiceLabel({ serviceType }: { serviceType: string }) {
+  const data = SERVICE_LABELS_DATA[serviceType];
+  if (!data) return null;
+  const Icon = data.icon;
+  return <span className="inline-flex items-center gap-1"><Icon size={12} /> {data.label}</span>;
+}
 
 export default function AdminApplications() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -82,7 +101,7 @@ export default function AdminApplications() {
     setActionLoading(true);
     try {
       await api.patch(`/admin/applications/${approveApp}/approve`, { message: approveMsg });
-      toast.success("Ariza tasdiqlandi! ✅");
+      toast.success("Ariza tasdiqlandi!");
       setApproveApp(null); setApproveMsg(""); setDetail(null); fetchApplications();
     } catch (e) {
       const err = e as AxiosError<{ error: string }>;
@@ -121,46 +140,50 @@ export default function AdminApplications() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-wrap gap-3 items-center">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-          {["PENDING","APPROVED","REJECTED"].map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === s ? "bg-white shadow-sm text-indigo-700" : "text-gray-500 hover:text-gray-700"}`}>
-              {STATUS_BADGE[s]}
-            </button>
-          ))}
+      <div className="glass-card p-4 flex flex-wrap gap-3 items-center">
+        <div className="flex gap-1 p-1 rounded-xl" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+          {["PENDING","APPROVED","REJECTED"].map(s => {
+            const BadgeIcon = STATUS_BADGE_ICONS[s].icon;
+            return (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1 ${statusFilter === s ? "shadow-sm" : "hover:opacity-80"}`}
+                style={statusFilter === s ? { backgroundColor: "var(--card)", color: "var(--text)" } : { color: "var(--text-secondary)" }}>
+                <BadgeIcon size={12} /> {STATUS_BADGE_ICONS[s].label}
+              </button>
+            );
+          })}
         </div>
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Ism, username yoki email..."
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none" />
+            className="glass-input w-full pl-9 pr-3 py-2 text-sm" />
         </div>
-        <span className="text-sm text-gray-500">Jami: <strong>{total}</strong></span>
+        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>Jami: <strong>{total}</strong></span>
       </div>
 
       {/* List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : applications.length === 0 ? (
-          <div className="py-16 text-center text-gray-400">Arizalar yo'q</div>
+          <div className="py-16 text-center" style={{ color: "var(--muted)" }}>Arizalar yo&apos;q</div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y" style={{ borderColor: "var(--border-strong)" }}>
             {applications.map(a => (
-              <div key={a.id} className="p-4 hover:bg-gray-50 transition-colors">
+              <div key={a.id} className="p-4 transition-colors hover:bg-[var(--sidebar-hover)]">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 flex-shrink-0">
                     {a.user.name?.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-800">{a.user.name}</span>
+                      <span className="font-semibold" style={{ color: "var(--text)" }}>{a.user.name}</span>
                       {a.user.username && <span className="text-indigo-600 text-sm">@{a.user.username}</span>}
-                      {a.user.walletId && <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{a.user.walletId}</span>}
-                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[a.status]}`}>{STATUS_BADGE[a.status]}</span>
+                      {a.user.walletId && <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: "var(--sidebar-hover)" }}>{a.user.walletId}</span>}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 ${STATUS_COLORS[a.status]}`}><StatusBadge status={a.status} /></span>
                     </div>
-                    <div className="text-xs text-gray-400 mt-0.5 flex gap-3">
+                    <div className="text-xs mt-0.5 flex gap-3" style={{ color: "var(--muted)" }}>
                       <span>{new Date(a.createdAt).toLocaleDateString("uz-UZ")}</span>
                       <span>{a.skillsCount} ta xizmat</span>
                       <span>{a.districts?.slice(0,2).join(", ")}{a.districts?.length > 2 ? ` +${a.districts.length-2}` : ""}</span>
@@ -186,24 +209,24 @@ export default function AdminApplications() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-500">{total} ta</span>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderTop: "1px solid var(--border-strong)" }}>
+            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{total} ta</span>
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1} className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40"><ChevronLeft size={15} /></button>
-              <span className="text-sm text-gray-700 px-2">{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages,p+1))} disabled={page===totalPages} className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40"><ChevronRight size={15} /></button>
+              <button onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1} className="p-1.5 rounded-lg disabled:opacity-40 hover:bg-[var(--sidebar-hover)]"><ChevronLeft size={15} /></button>
+              <span className="text-sm px-2" style={{ color: "var(--text)" }}>{page} / {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages,p+1))} disabled={page===totalPages} className="p-1.5 rounded-lg disabled:opacity-40 hover:bg-[var(--sidebar-hover)]"><ChevronRight size={15} /></button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ─── Detail Drawer ─── */}
+      {/* Detail Drawer */}
       {(detail || detailLoading) && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-end">
-          <div className="bg-white w-full max-w-xl h-full overflow-y-auto shadow-2xl">
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Ariza tafsilotlari</h2>
-              <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
+          <div className="w-full max-w-xl h-full overflow-y-auto shadow-2xl" style={{ backgroundColor: "var(--card)" }}>
+            <div className="sticky top-0 px-6 py-4 flex items-center justify-between" style={{ backgroundColor: "var(--card)", borderBottom: "1px solid var(--border-strong)" }}>
+              <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Ariza tafsilotlari</h2>
+              <button onClick={() => setDetail(null)} className="hover:opacity-80" style={{ color: "var(--muted)" }}><X size={20} /></button>
             </div>
 
             {detailLoading ? (
@@ -211,14 +234,14 @@ export default function AdminApplications() {
             ) : detail && (
               <div className="p-6 space-y-6">
                 {/* User */}
-                <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+                <div className="rounded-2xl p-4 space-y-2" style={{ backgroundColor: "var(--sidebar-hover)" }}>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-lg flex-shrink-0">
                       {detail.user.name?.charAt(0)}
                     </div>
                     <div>
-                      <div className="font-bold text-gray-800">{detail.user.name}</div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <div className="font-bold" style={{ color: "var(--text)" }}>{detail.user.name}</div>
+                      <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
                         <span className={`w-1.5 h-1.5 rounded-full ${detail.user.isOnline ? "bg-green-500" : "bg-gray-300"}`}/>
                         {detail.user.isOnline ? "Online" : "Offline"}
                         {detail.user.username && <span>· @{detail.user.username}</span>}
@@ -229,31 +252,31 @@ export default function AdminApplications() {
                     </a>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                    {detail.user.walletId && <div><span className="text-gray-500">ID:</span> <span className="font-mono">{detail.user.walletId}</span></div>}
-                    {detail.user.email && <div><span className="text-gray-500">Email:</span> {detail.user.email}</div>}
-                    <div><span className="text-gray-500">Ishonchlilik:</span> <span className="font-semibold text-emerald-600">{detail.user.reliability}%</span></div>
-                    <div><span className="text-gray-500">Muvaffaqiyatli:</span> <span className="font-semibold">{detail.user.successfulOrders}</span></div>
+                    {detail.user.walletId && <div><span style={{ color: "var(--text-secondary)" }}>ID:</span> <span className="font-mono">{detail.user.walletId}</span></div>}
+                    {detail.user.email && <div><span style={{ color: "var(--text-secondary)" }}>Email:</span> {detail.user.email}</div>}
+                    <div><span style={{ color: "var(--text-secondary)" }}>Ishonchlilik:</span> <span className="font-semibold text-emerald-600">{detail.user.reliability}%</span></div>
+                    <div><span style={{ color: "var(--text-secondary)" }}>Muvaffaqiyatli:</span> <span className="font-semibold">{detail.user.successfulOrders}</span></div>
                   </div>
                 </div>
 
                 {/* Ariza */}
                 <div className="space-y-3">
                   <div>
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">O'zi haqida</div>
-                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-xl">{detail.aboutMe}</p>
+                    <div className="text-xs font-semibold uppercase mb-1" style={{ color: "var(--text-secondary)" }}>O&apos;zi haqida</div>
+                    <p className="text-sm p-3 rounded-xl" style={{ color: "var(--text)", backgroundColor: "var(--sidebar-hover)" }}>{detail.aboutMe}</p>
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Nega qo'shilmoqchi</div>
-                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-xl">{detail.whyJoin}</p>
+                    <div className="text-xs font-semibold uppercase mb-1" style={{ color: "var(--text-secondary)" }}>Nega qo&apos;shilmoqchi</div>
+                    <p className="text-sm p-3 rounded-xl" style={{ color: "var(--text)", backgroundColor: "var(--sidebar-hover)" }}>{detail.whyJoin}</p>
                   </div>
                   {detail.portfolioLink && (
                     <div>
-                      <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Portfolio</div>
+                      <div className="text-xs font-semibold uppercase mb-1" style={{ color: "var(--text-secondary)" }}>Portfolio</div>
                       <a href={detail.portfolioLink} target="_blank" className="text-sm text-indigo-600 hover:underline break-all">{detail.portfolioLink}</a>
                     </div>
                   )}
                   <div>
-                    <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Tumanlar</div>
+                    <div className="text-xs font-semibold uppercase mb-1" style={{ color: "var(--text-secondary)" }}>Tumanlar</div>
                     <div className="flex flex-wrap gap-1.5">
                       {detail.workDistricts.map(d => (
                         <span key={d} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg">{d}</span>
@@ -261,29 +284,29 @@ export default function AdminApplications() {
                     </div>
                   </div>
                   {detail.dailyLimit && (
-                    <div className="text-sm text-gray-600">Kunlik limit: <strong>{detail.dailyLimit}</strong> ta</div>
+                    <div className="text-sm" style={{ color: "var(--text-secondary)" }}>Kunlik limit: <strong>{detail.dailyLimit}</strong> ta</div>
                   )}
                 </div>
 
                 {/* Skills */}
                 <div>
-                  <div className="text-xs font-semibold text-gray-500 uppercase mb-3">Xizmatlar ({detail.skills.length})</div>
+                  <div className="text-xs font-semibold uppercase mb-3" style={{ color: "var(--text-secondary)" }}>Xizmatlar ({detail.skills.length})</div>
                   <div className="space-y-3">
                     {detail.skills.map(s => (
-                      <div key={s.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <div key={s.id} className="rounded-xl p-4" style={{ backgroundColor: "var(--sidebar-hover)", border: "1px solid var(--border-strong)" }}>
                         <div className="flex items-start justify-between">
                           <div>
-                            <div className="font-semibold text-gray-800">{s.skill.name}</div>
-                            <div className="text-xs text-gray-500">{s.skill.category.name}</div>
+                            <div className="font-semibold" style={{ color: "var(--text)" }}>{s.skill.name}</div>
+                            <div className="text-xs" style={{ color: "var(--text-secondary)" }}>{s.skill.category.name}</div>
                           </div>
-                          <span className="text-xs bg-white border border-gray-200 px-2 py-1 rounded-lg">{SERVICE_LABELS[s.serviceType]}</span>
+                          <span className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--card)", border: "1px solid var(--border-strong)" }}><ServiceLabel serviceType={s.serviceType} /></span>
                         </div>
-                        <div className="flex gap-4 text-xs text-gray-500 mt-2">
+                        <div className="flex gap-4 text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
                           <span>Staj: <strong>{s.experienceYears} yil</strong></span>
-                          {s.priceFrom && <span>Dan: <strong>{s.priceFrom.toLocaleString()} so'm</strong></span>}
-                          {s.priceTo && <span>Gacha: <strong>{s.priceTo.toLocaleString()} so'm</strong></span>}
+                          {s.priceFrom && <span>Dan: <strong>{s.priceFrom.toLocaleString()} so&apos;m</strong></span>}
+                          {s.priceTo && <span>Gacha: <strong>{s.priceTo.toLocaleString()} so&apos;m</strong></span>}
                         </div>
-                        <p className="text-xs text-gray-600 mt-2 bg-white p-2 rounded-lg border border-gray-100">{s.description}</p>
+                        <p className="text-xs mt-2 p-2 rounded-lg" style={{ color: "var(--text-secondary)", backgroundColor: "var(--card)", border: "1px solid var(--border-strong)" }}>{s.description}</p>
                       </div>
                     ))}
                   </div>
@@ -291,17 +314,17 @@ export default function AdminApplications() {
 
                 {/* Actions */}
                 {detail.status === "PENDING" && (
-                  <div className="flex gap-2 pt-2 sticky bottom-0 bg-white py-4 border-t border-gray-100">
+                  <div className="flex gap-2 pt-2 sticky bottom-0 py-4" style={{ backgroundColor: "var(--card)", borderTop: "1px solid var(--border-strong)" }}>
                     <button onClick={() => { setApproveApp(detail.id); setApproveMsg(""); }}
-                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
+                      className="btn-success flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
                       <Check size={15}/> Qabul
                     </button>
                     <button onClick={() => { setChatApp(detail.id); setChatMsg(""); }}
-                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
+                      className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
                       <MessageSquare size={15}/> Chat
                     </button>
                     <button onClick={() => { setRejectApp(detail.id); setRejectReason(""); }}
-                      className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
+                      className="btn-danger flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
                       <X size={15}/> Rad
                     </button>
                   </div>
@@ -312,20 +335,20 @@ export default function AdminApplications() {
         </div>
       )}
 
-      {/* ─── Approve Modal ─── */}
+      {/* Approve Modal */}
       {approveApp && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <form onSubmit={handleApprove} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-emerald-700">✅ Arizani qabul qilish</h3>
+          <form onSubmit={handleApprove} className="glass-modal fade-in p-6 w-full max-w-md space-y-4">
+            <h3 className="text-lg font-bold text-emerald-500 flex items-center gap-2"><CheckCircle size={20} /> Arizani qabul qilish</h3>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Qabul qilish xabari *</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Qabul qilish xabari *</label>
               <textarea required rows={4} value={approveMsg} onChange={e => setApproveMsg(e.target.value)}
                 placeholder="Tabriklaymiz! Siz provayder bo'ldingiz..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 outline-none resize-none"/>
+                className="glass-textarea w-full resize-none"/>
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setApproveApp(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50">Bekor</button>
-              <button type="submit" disabled={actionLoading} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-sm font-bold">
+              <button type="button" onClick={() => setApproveApp(null)} className="btn-ghost flex-1 py-2.5 rounded-xl text-sm font-medium">Bekor</button>
+              <button type="submit" disabled={actionLoading} className="btn-success flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60">
                 {actionLoading ? "Yuborilmoqda..." : "Tasdiqlash"}
               </button>
             </div>
@@ -333,20 +356,20 @@ export default function AdminApplications() {
         </div>
       )}
 
-      {/* ─── Chat Modal ─── */}
+      {/* Chat Modal */}
       {chatApp && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <form onSubmit={handleChat} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-blue-700">💬 Chat ochish</h3>
+          <form onSubmit={handleChat} className="glass-modal fade-in p-6 w-full max-w-md space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--text)" }}><MessageSquare size={20} className="text-blue-500" /> Chat ochish</h3>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Birinchi xabar *</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Birinchi xabar *</label>
               <textarea required rows={4} value={chatMsg} onChange={e => setChatMsg(e.target.value)}
                 placeholder="Salom! Arizangiz haqida bir nechta savollarim bor..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none resize-none"/>
+                className="glass-textarea w-full resize-none"/>
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setChatApp(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50">Bekor</button>
-              <button type="submit" disabled={actionLoading} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-bold">
+              <button type="button" onClick={() => setChatApp(null)} className="btn-ghost flex-1 py-2.5 rounded-xl text-sm font-medium">Bekor</button>
+              <button type="submit" disabled={actionLoading} className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60">
                 {actionLoading ? "..." : "Chat ochish"}
               </button>
             </div>
@@ -354,20 +377,20 @@ export default function AdminApplications() {
         </div>
       )}
 
-      {/* ─── Reject Modal ─── */}
+      {/* Reject Modal */}
       {rejectApp && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <form onSubmit={handleReject} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-red-600">❌ Arizani rad etish</h3>
+          <form onSubmit={handleReject} className="glass-modal fade-in p-6 w-full max-w-md space-y-4">
+            <h3 className="text-lg font-bold text-red-500 flex items-center gap-2"><XCircle size={20} /> Arizani rad etish</h3>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rad etish sababi *</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Rad etish sababi *</label>
               <textarea required rows={4} value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                 placeholder="Ariza to'liq emas, ..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none resize-none"/>
+                className="glass-textarea w-full resize-none"/>
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setRejectApp(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50">Bekor</button>
-              <button type="submit" disabled={actionLoading} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">
+              <button type="button" onClick={() => setRejectApp(null)} className="btn-ghost flex-1 py-2.5 rounded-xl text-sm font-medium">Bekor</button>
+              <button type="submit" disabled={actionLoading} className="btn-danger flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60">
                 {actionLoading ? "..." : "Rad etish"}
               </button>
             </div>

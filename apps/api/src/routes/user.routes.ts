@@ -5,6 +5,7 @@ import {
   updateAvatar,
   updateSettings,
   changePassword,
+  verifyPassword,
   getPublicUser,
 } from '../controllers/user.controller';
 import { authenticate } from '../middlewares/auth';
@@ -19,6 +20,7 @@ router.post('/me/avatar', authenticate, uploadAvatar.single('avatar'), updateAva
 router.patch('/me/avatar', authenticate, uploadAvatar.single('avatar'), updateAvatar);
 router.patch('/me/settings', authenticate, updateSettings);
 router.patch('/me/change-password', authenticate, changePassword);
+router.post('/me/verify-password', authenticate, verifyPassword);
 
 // Public
 router.get('/:id', getPublicUser);

@@ -11,6 +11,7 @@ import {
   Briefcase, MessageSquare, CheckCircle, XCircle, Clock, Search, ShieldAlert,
   Building, MapPin, User, ChevronRight, Calendar
 } from "lucide-react";
+import Avatar from "../../../components/Avatar";
 
 export default function ProviderDashboard() {
   const { user, isAuthenticated } = useAuthStore();
@@ -19,16 +20,16 @@ export default function ProviderDashboard() {
   const [orders, setOrders] = useState<Record<string, any>[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
-  
+
   // Profile state
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [bio, setBio] = useState("");
   const [isEditingBio, setIsEditingBio] = useState(false);
-  
+
   // Status state
   const [status, setStatus] = useState("AVAILABLE");
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  
+
   // Schedule state
   const [schedules, setSchedules] = useState<Record<string, any>[]>([]);
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
@@ -39,7 +40,7 @@ export default function ProviderDashboard() {
   const [acceptMessage, setAcceptMessage] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
-  
+
   const DAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function ProviderDashboard() {
         setBio(p.bio || "");
         setStatus(p.availabilityStatus || "AVAILABLE");
       }
-      
+
       const schedRes = await api.get("/provider/schedule");
       if (schedRes.data.success) {
         setSchedules(schedRes.data.data);
@@ -131,7 +132,6 @@ export default function ProviderDashboard() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      // By default it should return orders where the provider is assigned.
       const res = await api.get("/orders");
       if (res.data.success) {
         setOrders(res.data.data);
@@ -151,7 +151,6 @@ export default function ProviderDashboard() {
       if (res.data.success) {
         toast.success(`Buyurtma holati o'zgardi!`);
         fetchOrders();
-        // Chat ochilsa — sahifaga o'tish
         if (action === 'chat') {
           router.push(`/orders/${orderId}`);
         }
@@ -203,28 +202,28 @@ export default function ProviderDashboard() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING': return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold border border-yellow-200">Kutilmoqda</span>;
-      case 'ACCEPTED': return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">Qabul qilingan</span>;
-      case 'CHATTING': return <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold border border-indigo-200">Jarayonda (Chat)</span>;
-      case 'AWAITING_CONFIRMATION': return <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold border border-orange-200">Tasdiq kutilmoqda</span>;
-      case 'COMPLETED': return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold border border-green-200">Yakunlangan</span>;
-      case 'REJECTED': return <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">Rad etilgan</span>;
-      case 'CANCELLED': return <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">Bekor qilingan</span>;
-      case 'DISPUTED': return <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold border border-red-200">Nizoli</span>;
-      default: return <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
+      case 'PENDING': return <span className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-full text-xs font-bold">Kutilmoqda</span>;
+      case 'ACCEPTED': return <span className="bg-blue-500/10 text-blue-500 px-3 py-1 rounded-full text-xs font-bold">Qabul qilingan</span>;
+      case 'CHATTING': return <span className="bg-indigo-500/10 text-indigo-500 px-3 py-1 rounded-full text-xs font-bold">Jarayonda (Chat)</span>;
+      case 'AWAITING_CONFIRMATION': return <span className="bg-orange-500/10 text-orange-500 px-3 py-1 rounded-full text-xs font-bold">Tasdiq kutilmoqda</span>;
+      case 'COMPLETED': return <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-xs font-bold">Yakunlangan</span>;
+      case 'REJECTED': return <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-full text-xs font-bold">Rad etilgan</span>;
+      case 'CANCELLED': return <span className="bg-gray-500/10 text-gray-500 px-3 py-1 rounded-full text-xs font-bold">Bekor qilingan</span>;
+      case 'DISPUTED': return <span className="bg-red-500/10 text-red-500 px-3 py-1 rounded-full text-xs font-bold">Nizoli</span>;
+      default: return <span className="bg-gray-500/10 text-gray-500 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
     }
   };
 
   if (loading) return (
     <div className="flex justify-center items-center py-20">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
     </div>
   );
 
   const filteredOrders = getFilteredOrders();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-emerald-600 to-teal-700 p-8 rounded-3xl text-white shadow-lg">
         <div>
           <h1 className="text-3xl font-bold mb-2">Provayder Dashboard</h1>
@@ -246,8 +245,8 @@ export default function ProviderDashboard() {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="w-full md:w-80 flex-shrink-0 space-y-4">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
-            <h3 className="font-bold text-gray-900 mb-4 text-lg">Mening Holatim</h3>
+          <div className="glass-card p-6 mb-6">
+            <h3 className="font-bold mb-4 text-lg" style={{ color: "var(--text)" }}>Mening Holatim</h3>
             <div className="flex gap-2 mb-6">
               {(['AVAILABLE', 'BUSY'] as const).map(s => (
                 <button
@@ -255,10 +254,11 @@ export default function ProviderDashboard() {
                   onClick={() => handleUpdateStatus(s)}
                   disabled={updatingStatus}
                   className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                    status === s 
+                    status === s
                       ? (s === 'AVAILABLE' ? 'bg-emerald-600 text-white' : 'bg-yellow-500 text-white')
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      : ''
                   }`}
+                  style={status !== s ? { backgroundColor: "var(--sidebar-hover)", color: "var(--text-secondary)" } : undefined}
                 >
                   {s === 'AVAILABLE' ? "Bo'sh" : 'Band'}
                 </button>
@@ -268,63 +268,63 @@ export default function ProviderDashboard() {
             {profile?.status === 'APPROVED' && (
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-bold text-gray-900">Bio</h4>
-                  <button onClick={() => setIsEditingBio(!isEditingBio)} className="text-xs text-blue-600 font-bold">
+                  <h4 className="font-bold" style={{ color: "var(--text)" }}>Bio</h4>
+                  <button onClick={() => setIsEditingBio(!isEditingBio)} className="text-xs text-blue-500 font-bold">
                     {isEditingBio ? "Bekor qilish" : "Tahrirlash"}
                   </button>
                 </div>
                 {isEditingBio ? (
                   <div className="space-y-2">
-                    <textarea 
-                      value={bio} onChange={e => setBio(e.target.value)} 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    <textarea
+                      value={bio} onChange={e => setBio(e.target.value)}
+                      className="glass-textarea"
                       rows={3}
                     ></textarea>
-                    <button onClick={handleUpdateBio} className="w-full bg-blue-600 text-white rounded-xl py-2 text-sm font-bold">Saqlash</button>
+                    <button onClick={handleUpdateBio} className="w-full btn-primary rounded-xl py-2 text-sm font-bold">Saqlash</button>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-xl">{profile?.bio || "Bio kiritilmagan"}</p>
+                  <p className="text-sm p-3 rounded-xl" style={{ color: "var(--text-secondary)", backgroundColor: "var(--sidebar-hover)" }}>{profile?.bio || "Bio kiritilmagan"}</p>
                 )}
               </div>
             )}
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <h4 className="font-bold text-gray-900">Ish jadvali</h4>
-                <button onClick={() => setIsEditingSchedule(!isEditingSchedule)} className="text-xs text-blue-600 font-bold">
+                <h4 className="font-bold" style={{ color: "var(--text)" }}>Ish jadvali</h4>
+                <button onClick={() => setIsEditingSchedule(!isEditingSchedule)} className="text-xs text-blue-500 font-bold">
                   {isEditingSchedule ? "Bekor qilish" : "Tahrirlash"}
                 </button>
               </div>
-              
+
               {isEditingSchedule ? (
                 <div className="space-y-3">
                   {DAYS.map((day, i) => {
                     const s = schedules.find(x => x.dayOfWeek === i) || { isActive: false, openTime: "09:00", closeTime: "18:00" };
                     return (
-                      <div key={i} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded-xl">
-                        <input type="checkbox" checked={s.isActive} onChange={e => handleScheduleChange(i, 'isActive', e.target.checked)} className="rounded text-blue-600" />
-                        <span className="w-20 font-medium">{day.substring(0,3)}</span>
-                        <input type="time" value={s.openTime} disabled={!s.isActive} onChange={e => handleScheduleChange(i, 'openTime', e.target.value)} className="w-20 px-1 border rounded bg-white text-xs" />
-                        <span>-</span>
-                        <input type="time" value={s.closeTime} disabled={!s.isActive} onChange={e => handleScheduleChange(i, 'closeTime', e.target.value)} className="w-20 px-1 border rounded bg-white text-xs" />
+                      <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-xl" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                        <input type="checkbox" checked={s.isActive} onChange={e => handleScheduleChange(i, 'isActive', e.target.checked)} className="rounded text-blue-500" />
+                        <span className="w-20 font-medium" style={{ color: "var(--text)" }}>{day.substring(0,3)}</span>
+                        <input type="time" value={s.openTime} disabled={!s.isActive} onChange={e => handleScheduleChange(i, 'openTime', e.target.value)} className="w-20 px-1 border rounded text-xs" style={{ borderColor: "var(--border-strong)", backgroundColor: "var(--bg)" }} />
+                        <span style={{ color: "var(--text-secondary)" }}>-</span>
+                        <input type="time" value={s.closeTime} disabled={!s.isActive} onChange={e => handleScheduleChange(i, 'closeTime', e.target.value)} className="w-20 px-1 border rounded text-xs" style={{ borderColor: "var(--border-strong)", backgroundColor: "var(--bg)" }} />
                       </div>
                     )
                   })}
-                  <button onClick={handleSaveSchedule} className="w-full bg-blue-600 text-white rounded-xl py-2 text-sm font-bold mt-2">Jadvalni saqlash</button>
+                  <button onClick={handleSaveSchedule} className="w-full btn-primary rounded-xl py-2 text-sm font-bold mt-2">Jadvalni saqlash</button>
                 </div>
               ) : (
-                <div className="space-y-1 text-sm bg-gray-50 p-3 rounded-xl">
-                  {schedules.length === 0 ? <span className="text-gray-500 italic">Jadval kiritilmagan</span> : DAYS.map((day, i) => {
+                <div className="space-y-1 text-sm p-3 rounded-xl" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                  {schedules.length === 0 ? <span className="italic" style={{ color: "var(--muted)" }}>Jadval kiritilmagan</span> : DAYS.map((day, i) => {
                     const s = schedules.find(x => x.dayOfWeek === i);
                     if (!s || !s.isActive) return null;
-                    return <div key={i} className="flex justify-between"><span className="font-medium text-gray-700">{day}:</span> <span className="text-gray-900">{s.openTime} - {s.closeTime}</span></div>
+                    return <div key={i} className="flex justify-between"><span className="font-medium" style={{ color: "var(--text-secondary)" }}>{day}:</span> <span style={{ color: "var(--text)" }}>{s.openTime} - {s.closeTime}</span></div>
                   })}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
+          <div className="glass-card p-4">
             <nav className="space-y-1">
               {[
                 { id: "all", label: "Barcha buyurtmalar", count: orders.length, icon: <Briefcase size={18} /> },
@@ -336,10 +336,11 @@ export default function ProviderDashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all font-medium ${activeTab === tab.id ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-50"}`}
+                  className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all font-medium ${activeTab === tab.id ? "bg-emerald-500/10 text-emerald-500" : ""}`}
+                  style={activeTab !== tab.id ? { color: "var(--text-secondary)" } : undefined}
                 >
                   <span className="flex items-center gap-3">{tab.icon} {tab.label}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === tab.id ? "bg-emerald-200 text-emerald-800 font-bold" : "bg-gray-100 text-gray-500"}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === tab.id ? "bg-emerald-500/20 text-emerald-500 font-bold" : "bg-gray-500/10"}`} style={activeTab !== tab.id ? { color: "var(--muted)" } : undefined}>
                     {tab.count}
                   </span>
                 </button>
@@ -351,68 +352,62 @@ export default function ProviderDashboard() {
         {/* Main Content */}
         <div className="flex-1 space-y-4">
           {filteredOrders.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="text-gray-300" size={32} />
+            <div className="glass-card p-12 text-center">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                <Search size={32} style={{ color: "var(--muted)" }} />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Buyurtmalar topilmadi</h3>
-              <p className="text-gray-500">Ushbu bo'limda hozircha hech qanday buyurtma yo'q.</p>
+              <h3 className="text-lg font-bold mb-1" style={{ color: "var(--text)" }}>Buyurtmalar topilmadi</h3>
+              <p style={{ color: "var(--text-secondary)" }}>Ushbu bo'limda hozircha hech qanday buyurtma yo'q.</p>
             </div>
           ) : (
             filteredOrders.map(order => (
-              <div key={order.id} className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md hover:border-emerald-100 transition-all">
+              <div key={order.id} className="glass-card p-6 hover:shadow-md transition-all">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                   <div className="flex-1">
                     {/* Status + Meta */}
                     <div className="flex items-center gap-3 mb-3">
                       {getStatusBadge(order.status)}
                       {order.organization && (
-                        <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-medium border border-indigo-100 flex items-center gap-1">
+                        <span className="bg-indigo-500/10 text-indigo-500 px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
                           <Building size={12} /> {order.organization.name} orqali
                         </span>
                       )}
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <span className="text-xs flex items-center gap-1" style={{ color: "var(--muted)" }}>
                         <Clock size={12} /> {new Date(order.createdAt).toLocaleDateString("uz-UZ")}
                       </span>
                     </div>
 
                     {/* Skill + Description */}
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">{order.skill?.name || "Noma'lum xizmat"}</h3>
-                    <p className="text-gray-600 mb-4">{order.description}</p>
+                    <h3 className="text-xl font-bold mb-1" style={{ color: "var(--text)" }}>{order.skill?.name || "Noma'lum xizmat"}</h3>
+                    <p className="mb-4" style={{ color: "var(--text-secondary)" }}>{order.description}</p>
 
                     {/* Info grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-2xl mb-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl mb-4 text-sm" style={{ backgroundColor: "var(--sidebar-hover)" }}>
                       {/* Mijoz */}
                       <div>
-                        <span className="text-gray-500 block mb-1 text-xs">Mijoz:</span>
+                        <span className="block mb-1 text-xs" style={{ color: "var(--muted)" }}>Mijoz:</span>
                         <a
                           href={`/users/${order.user?.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-semibold text-blue-600 hover:underline flex items-center gap-2"
+                          className="font-semibold text-blue-500 hover:underline flex items-center gap-2"
                         >
-                          {order.user?.avatar ? (
-                            <img src={`http://localhost:5000${order.user.avatar}`} alt={order.user.name} className="w-6 h-6 rounded-full object-cover" />
-                          ) : (
-                            <span className="w-6 h-6 rounded-full bg-blue-200 text-blue-700 text-xs flex items-center justify-center font-bold">
-                              {order.user?.name?.charAt(0)}
-                            </span>
-                          )}
+                          <Avatar name={order.user?.name} avatar={order.user?.avatar} size="xs" />
                           {order.user?.name}
                         </a>
                       </div>
                       {/* Manzil */}
                       <div>
-                        <span className="text-gray-500 block mb-1 text-xs">Manzil:</span>
-                        <div className="font-semibold text-gray-900 flex items-center gap-1">
+                        <span className="block mb-1 text-xs" style={{ color: "var(--muted)" }}>Manzil:</span>
+                        <div className="font-semibold flex items-center gap-1" style={{ color: "var(--text)" }}>
                           <MapPin size={14} className="text-red-500" /> {order.address}
                         </div>
                       </div>
                       {/* Qulay vaqt */}
                       {order.preferredDate && (
                         <div className="sm:col-span-2">
-                          <span className="text-gray-500 block mb-1 text-xs">Qulay vaqt:</span>
-                          <div className="font-semibold text-gray-900 flex items-center gap-1">
+                          <span className="block mb-1 text-xs" style={{ color: "var(--muted)" }}>Qulay vaqt:</span>
+                          <div className="font-semibold flex items-center gap-1" style={{ color: "var(--text)" }}>
                             <Calendar size={14} className="text-blue-500" />
                             {new Date(order.preferredDate).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" })}
                           </div>
@@ -422,27 +417,27 @@ export default function ProviderDashboard() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col gap-2 min-w-[150px] mt-4 md:mt-0 border-t md:border-t-0 pt-4 md:pt-0">
+                  <div className="flex flex-col gap-2 min-w-[150px] mt-4 md:mt-0 pt-4 md:pt-0" style={{ borderTop: "none" }}>
                     {order.status === "PENDING" && (
                       <>
                         <button
                           disabled={actionLoading}
                           onClick={() => setAcceptModal({ orderId: order.id })}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                          className="w-full btn-success px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                         >
                           <CheckCircle size={16} /> Qabul qilish
                         </button>
                         <button
                           disabled={actionLoading}
                           onClick={() => handleOrderAction(order.id, 'chat')}
-                          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                          className="w-full btn-primary px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                         >
                           <MessageSquare size={16} /> Chat ochish
                         </button>
                         <button
                           disabled={actionLoading}
                           onClick={() => setRejectModal({ orderId: order.id })}
-                          className="w-full bg-red-50 hover:bg-red-100 disabled:opacity-60 text-red-600 px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                          className="w-full btn-danger px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                         >
                           <XCircle size={16} /> Rad etish
                         </button>
@@ -450,25 +445,25 @@ export default function ProviderDashboard() {
                     )}
 
                     {order.status === "ACCEPTED" && (
-                      <button onClick={() => handleOrderAction(order.id, "chat")} disabled={actionLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                      <button onClick={() => handleOrderAction(order.id, "chat")} disabled={actionLoading} className="w-full btn-primary px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                         <MessageSquare size={16} /> Chat ochish
                       </button>
                     )}
 
                     {order.status === "CHATTING" && (
-                      <button onClick={() => handleOrderAction(order.id, "complete")} disabled={actionLoading} className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                      <button onClick={() => handleOrderAction(order.id, "complete")} disabled={actionLoading} className="w-full btn-success px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                         <CheckCircle size={16} /> Ishni yakunlash
                       </button>
                     )}
 
                     {["ACCEPTED", "CHATTING"].includes(order.status) && (
-                      <Link href={`/orders/${order.id}`} className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-center">
+                      <Link href={`/orders/${order.id}`} className="w-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-center">
                         <MessageSquare size={16} /> Buyurtma sahifasi
                       </Link>
                     )}
 
                     {["COMPLETED", "CANCELLED", "REJECTED", "AWAITING_CONFIRMATION", "DISPUTED"].includes(order.status) && (
-                      <Link href={`/orders/${order.id}`} className="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-center">
+                      <Link href={`/orders/${order.id}`} className="w-full btn-ghost px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-center">
                         Tafsilotlar <ChevronRight size={16} />
                       </Link>
                     )}
@@ -483,33 +478,33 @@ export default function ProviderDashboard() {
       {/* ───── Accept Modal ───── */}
       {acceptModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold mb-1">✅ Buyurtmani qabul qilish</h2>
-            <p className="text-sm text-gray-500 mb-4">Mijozga yuboriladi</p>
+          <div className="glass-modal fade-in p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text)" }}><CheckCircle size={20} className="inline text-emerald-500 mr-1" />Buyurtmani qabul qilish</h2>
+            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>Mijozga yuboriladi</p>
             <form onSubmit={handleAcceptSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Qabul qilish xabari</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Qabul qilish xabari</label>
                 <textarea
                   required
                   rows={3}
                   value={acceptMessage}
                   onChange={e => setAcceptMessage(e.target.value)}
                   placeholder="Masalan: Qabul qildim, tez orada bog'lanaman!"
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-gray-50"
+                  className="glass-textarea"
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => { setAcceptModal(null); setAcceptMessage(""); }}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                  className="btn-ghost px-4 py-2 rounded-xl font-medium"
                 >
                   Bekor
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl font-bold"
+                  className="btn-success px-5 py-2 rounded-xl font-bold disabled:opacity-60"
                 >
                   {actionLoading ? "Yuborilmoqda..." : "Yuborish"}
                 </button>
@@ -522,33 +517,33 @@ export default function ProviderDashboard() {
       {/* ───── Reject Modal ───── */}
       {rejectModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold mb-1">❌ Buyurtmani rad etish</h2>
-            <p className="text-sm text-gray-500 mb-4">Sabab mijozga yuboriladi</p>
+          <div className="glass-modal fade-in p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text)" }}><XCircle size={20} className="inline text-red-500 mr-1" />Buyurtmani rad etish</h2>
+            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>Sabab mijozga yuboriladi</p>
             <form onSubmit={handleRejectSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Rad etish sababi</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Rad etish sababi</label>
                 <textarea
                   required
                   rows={3}
                   value={rejectReason}
                   onChange={e => setRejectReason(e.target.value)}
                   placeholder="Masalan: Ushbu kunda bandman..."
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-red-500 outline-none bg-gray-50"
+                  className="glass-textarea"
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => { setRejectModal(null); setRejectReason(""); }}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                  className="btn-ghost px-4 py-2 rounded-xl font-medium"
                 >
                   Bekor
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl font-bold"
+                  className="btn-danger px-5 py-2 rounded-xl font-bold disabled:opacity-60"
                 >
                   {actionLoading ? "Yuborilmoqda..." : "Rad etish"}
                 </button>

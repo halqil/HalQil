@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import api from "../../../lib/api";
 import { useAuthStore } from "../../../lib/store";
 import toast from "react-hot-toast";
-import { ChevronRight, ChevronLeft, Plus, Trash2, Check, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Building, Home, RefreshCw, Pencil, PartyPopper } from "lucide-react";
 
 type SkillItem = {
   skillId: string; skillName: string; categoryName: string;
@@ -15,10 +15,10 @@ type SkillItem = {
 
 type DistrictInfo = { id: string; name: string; city: string; };
 
-const SERVICE_TYPE_LABELS: Record<string, string> = {
-  ORGANIZED: "🏢 Tashkilotli — Mijoz mening joyimga keladi",
-  UNORGANIZED: "🏠 Tashkilotsiz — Men mijozning uyiga boraman",
-  BOTH: "🔄 Ikkalasi ham",
+const SERVICE_TYPE_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
+  ORGANIZED: { label: "Tashkilotli — Mijoz mening joyimga keladi", icon: <Building size={14} className="text-indigo-500" /> },
+  UNORGANIZED: { label: "Tashkilotsiz — Men mijozning uyiga boraman", icon: <Home size={14} className="text-emerald-500" /> },
+  BOTH: { label: "Ikkalasi ham", icon: <RefreshCw size={14} className="text-blue-500" /> },
 };
 
 export default function BecomeProviderPage() {
@@ -134,11 +134,11 @@ export default function BecomeProviderPage() {
   };
 
   if (done) return (
-    <div className="max-w-lg mx-auto py-20 text-center px-4">
-      <div className="text-6xl mb-4">🎉</div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Ariza qabul qilindi!</h1>
-      <p className="text-gray-500">Admin ko'rib chiqadi. Natija haqida xabar olasiz.</p>
-      <p className="text-sm text-gray-400 mt-3">Profil sahifasiga yo'naltirilmoqda...</p>
+    <div className="max-w-lg mx-auto py-20 text-center px-4 fade-in">
+      <div className="text-6xl mb-4"><PartyPopper size={64} className="mx-auto text-yellow-500" /></div>
+      <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--text)" }}>Ariza qabul qilindi!</h1>
+      <p style={{ color: "var(--text-secondary)" }}>Admin ko'rib chiqadi. Natija haqida xabar olasiz.</p>
+      <p className="text-sm mt-3" style={{ color: "var(--muted)" }}>Profil sahifasiga yo'naltirilmoqda...</p>
     </div>
   );
 
@@ -147,54 +147,55 @@ export default function BecomeProviderPage() {
       {[1,2,3].map(n => (
         <div key={n} className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-            step > n ? "bg-emerald-500 text-white" : step === n ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-500"
-          }`}>
+            step > n ? "bg-emerald-500 text-white" : step === n ? "bg-indigo-600 text-white" : ""
+          }`} style={step <= n && step !== n ? { backgroundColor: "var(--sidebar-hover)", color: "var(--muted)" } : undefined}>
             {step > n ? <Check size={14} /> : n}
           </div>
-          <span className={`text-sm font-medium hidden sm:block ${step === n ? "text-indigo-700" : "text-gray-400"}`}>
+          <span className={`text-sm font-medium hidden sm:block ${step === n ? "text-indigo-500" : ""}`} style={step !== n ? { color: "var(--muted)" } : undefined}>
             {n === 1 ? "O'zim haqimda" : n === 2 ? "Ish joyi" : "Xizmatlarim"}
           </span>
-          {n < 3 && <div className={`w-8 h-0.5 ${step > n ? "bg-emerald-400" : "bg-gray-200"}`} />}
+          {n < 3 && <div className={`w-8 h-0.5 ${step > n ? "bg-emerald-400" : ""}`} style={step <= n ? { backgroundColor: "var(--sidebar-hover)" } : undefined} />}
         </div>
       ))}
     </div>
   );
 
   return (
-    <div className="max-w-2xl mx-auto py-8 px-4">
+    <div className="max-w-2xl mx-auto py-8 px-4 fade-in">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Provayder bo'lish</h1>
-        <p className="text-gray-500 text-sm mt-1">Arizangizni to'ldiring — admin ko'rib chiqadi</p>
+        <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>Provayder bo'lish</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>Arizangizni to'ldiring — admin ko'rib chiqadi</p>
       </div>
       <StepIndicator />
 
       {/* ─── STEP 1 ─── */}
       {step === 1 && (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-5">
+        <div className="glass-card p-6 space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">O'zingiz haqingizda *</label>
-            <p className="text-xs text-gray-400 mb-2">Kamida 50 belgi</p>
+            <label className="block text-sm font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>O'zingiz haqingizda *</label>
+            <p className="text-xs mb-2" style={{ color: "var(--muted)" }}>Kamida 50 belgi</p>
             <textarea rows={5} value={aboutMe} onChange={e => setAboutMe(e.target.value)}
               placeholder="Men 5 yillik tajribaga ega santexnikman. Toshkentning barcha tumanlarida xizmat ko'rsataman..."
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none bg-gray-50" />
-            <div className="text-right text-xs text-gray-400 mt-1">{aboutMe.length}/500</div>
+              className="glass-textarea" />
+            <div className="text-right text-xs mt-1" style={{ color: "var(--muted)" }}>{aboutMe.length}/500</div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Nega HalQil'da ishlashni xohlaysiz? *</label>
-            <p className="text-xs text-gray-400 mb-2">Kamida 30 belgi</p>
+            <label className="block text-sm font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>Nega HalQil'da ishlashni xohlaysiz? *</label>
+            <p className="text-xs mb-2" style={{ color: "var(--muted)" }}>Kamida 30 belgi</p>
             <textarea rows={4} value={whyJoin} onChange={e => setWhyJoin(e.target.value)}
               placeholder="Yangi mijozlar topish va..."
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none bg-gray-50" />
-            <div className="text-right text-xs text-gray-400 mt-1">{whyJoin.length}/300</div>
+              className="glass-textarea" />
+            <div className="text-right text-xs mt-1" style={{ color: "var(--muted)" }}>{whyJoin.length}/300</div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Portfolio havolasi (ixtiyoriy)</label>
+            <label className="block text-sm font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>Portfolio havolasi (ixtiyoriy)</label>
             <input type="url" value={portfolioLink} onChange={e => setPortfolioLink(e.target.value)}
               placeholder="https://instagram.com/..."
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" />
+              className="glass-input" />
           </div>
           <button onClick={() => { if (!step1Valid) return toast.error("Barcha majburiy maydonlarni to'ldiring"); setStep(2); }}
-            className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${step1Valid ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}>
+            className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${step1Valid ? "btn-primary" : "cursor-not-allowed"}`}
+            style={!step1Valid ? { backgroundColor: "var(--sidebar-hover)", color: "var(--muted)" } : undefined}>
             Keyingi <ChevronRight size={16} />
           </button>
         </div>
@@ -202,24 +203,25 @@ export default function BecomeProviderPage() {
 
       {/* ─── STEP 2 ─── */}
       {step === 2 && (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-5">
+        <div className="glass-card p-6 space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">Qaysi tumanlarda xizmat ko'rsatasiz? *</label>
+            <label className="block text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>Qaysi tumanlarda xizmat ko'rsatasiz? *</label>
             <div className="space-y-5 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               {Object.entries(groupedDistricts).map(([city, dists]) => (
                 <div key={city}>
-                  <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-1.5">
-                    🏙 {city}
+                  <h3 className="font-bold mb-2 flex items-center gap-1.5" style={{ color: "var(--text)" }}>
+                    <Building size={14} className="text-indigo-500" /> {city}
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {dists.map(d => (
                       <button key={d.id} onClick={() => toggleDistrict(d.name)}
-                        className={`px-3 py-2.5 rounded-xl text-sm text-left border transition-all ${districts.includes(d.name) ? "bg-indigo-50 border-indigo-500 shadow-sm" : "bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50"}`}>
+                        className={`px-3 py-2.5 rounded-xl text-sm text-left border transition-all ${districts.includes(d.name) ? "bg-indigo-500/10 border-indigo-500 shadow-sm" : ""}`}
+                        style={!districts.includes(d.name) ? { borderColor: "var(--border-strong)", backgroundColor: "var(--bg)" } : undefined}>
                         <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded border flex flex-shrink-0 items-center justify-center transition-colors ${districts.includes(d.name) ? "bg-indigo-600 border-indigo-600" : "border-gray-300 bg-white"}`}>
+                          <div className={`w-4 h-4 rounded border flex flex-shrink-0 items-center justify-center transition-colors ${districts.includes(d.name) ? "bg-indigo-600 border-indigo-600" : ""}`} style={!districts.includes(d.name) ? { borderColor: "var(--border-strong)" } : undefined}>
                             {districts.includes(d.name) && <Check size={12} className="text-white" strokeWidth={3} />}
                           </div>
-                          <span className={`truncate ${districts.includes(d.name) ? "text-indigo-900 font-medium" : "text-gray-700"}`}>{d.name}</span>
+                          <span className={`truncate ${districts.includes(d.name) ? "text-indigo-500 font-medium" : ""}`} style={!districts.includes(d.name) ? { color: "var(--text-secondary)" } : undefined}>{d.name}</span>
                         </div>
                       </button>
                     ))}
@@ -227,18 +229,18 @@ export default function BecomeProviderPage() {
                 </div>
               ))}
               {allDistricts.length === 0 && (
-                <div className="text-center py-8 text-gray-400 text-sm">Tumanlar yuklanmoqda...</div>
+                <div className="text-center py-8 text-sm" style={{ color: "var(--muted)" }}>Tumanlar yuklanmoqda...</div>
               )}
             </div>
-            
+
             {districts.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tanlangan: {districts.length} ta</p>
+              <div className="mt-4 pt-4 glass-divider">
+                <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--muted)" }}>Tanlangan: {districts.length} ta</p>
                 <div className="flex flex-wrap gap-2">
                   {districts.map(d => (
-                    <div key={d} className="flex items-center gap-1 bg-indigo-100 text-indigo-700 pl-3 pr-1 py-1 rounded-full text-xs font-semibold border border-indigo-200 shadow-sm">
+                    <div key={d} className="flex items-center gap-1 bg-indigo-500/10 text-indigo-500 pl-3 pr-1 py-1 rounded-full text-xs font-semibold shadow-sm">
                       <span>{d}</span>
-                      <button onClick={() => toggleDistrict(d)} className="hover:bg-indigo-200 p-1 rounded-full text-indigo-500 hover:text-indigo-800 transition-colors ml-1">
+                      <button onClick={() => toggleDistrict(d)} className="hover:bg-indigo-500/20 p-1 rounded-full transition-colors ml-1">
                         <X size={12} strokeWidth={2.5} />
                       </button>
                     </div>
@@ -248,17 +250,18 @@ export default function BecomeProviderPage() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Kunlik max buyurtmalar (ixtiyoriy)</label>
+            <label className="block text-sm font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>Kunlik max buyurtmalar (ixtiyoriy)</label>
             <input type="number" min={1} max={50} value={dailyLimit} onChange={e => setDailyLimit(e.target.value)}
               placeholder="Masalan: 5"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50" />
+              className="glass-input" />
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl font-bold text-sm border border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-2">
+            <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl font-bold text-sm btn-ghost flex items-center justify-center gap-2">
               <ChevronLeft size={16} /> Orqaga
             </button>
             <button onClick={() => { if (!step2Valid) return toast.error("Kamida 1 ta tuman tanlang"); setStep(3); }}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${step2Valid ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}>
+              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${step2Valid ? "btn-primary" : "cursor-not-allowed"}`}
+              style={!step2Valid ? { backgroundColor: "var(--sidebar-hover)", color: "var(--muted)" } : undefined}>
               Keyingi <ChevronRight size={16} />
             </button>
           </div>
@@ -267,29 +270,29 @@ export default function BecomeProviderPage() {
 
       {/* ─── STEP 3 ─── */}
       {step === 3 && (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-5">
+        <div className="glass-card p-6 space-y-5">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold text-gray-700">Xizmatlarim ({skills.length} ta)</label>
+            <label className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Xizmatlarim ({skills.length} ta)</label>
             <button onClick={() => { resetSkillModal(); setShowSkillModal(true); }}
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold">
+              className="flex items-center gap-1.5 btn-primary px-3 py-1.5 rounded-lg text-sm font-bold">
               <Plus size={14} /> Xizmat qo'shish
             </button>
           </div>
           {skills.length === 0 ? (
-            <div className="py-10 text-center text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+            <div className="py-10 text-center text-sm border-2 border-dashed rounded-xl" style={{ color: "var(--muted)", borderColor: "var(--border-strong)" }}>
               Hali xizmat qo'shilmagan
             </div>
           ) : (
             <div className="space-y-3">
               {skills.map((s, i) => (
-                <div key={i} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                <div key={i} className="rounded-xl p-4" style={{ backgroundColor: "var(--sidebar-hover)", border: "1px solid var(--border-strong)" }}>
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-semibold text-gray-800">{s.skillName}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{s.categoryName} · {s.experienceYears} yil staj</div>
-                      <div className="text-xs text-indigo-600 mt-1">{SERVICE_TYPE_LABELS[s.serviceType]}</div>
+                      <div className="font-semibold" style={{ color: "var(--text)" }}>{s.skillName}</div>
+                      <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{s.categoryName} · {s.experienceYears} yil staj</div>
+                      <div className="text-xs text-indigo-500 mt-1 flex items-center gap-1">{SERVICE_TYPE_LABELS[s.serviceType].icon} {SERVICE_TYPE_LABELS[s.serviceType].label}</div>
                       {(s.priceFrom || s.priceTo) && (
-                        <div className="text-xs text-gray-500 mt-0.5">
+                        <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
                           {s.priceFrom && `${Number(s.priceFrom).toLocaleString()} so'm`}
                           {s.priceFrom && s.priceTo && " — "}
                           {s.priceTo && `${Number(s.priceTo).toLocaleString()} so'm`}
@@ -297,8 +300,8 @@ export default function BecomeProviderPage() {
                       )}
                     </div>
                     <div className="flex gap-1.5">
-                      <button onClick={() => openEditSkill(i)} className="p-1.5 hover:bg-indigo-100 rounded-lg text-indigo-600 text-xs">✏️</button>
-                      <button onClick={() => setSkills(p => p.filter((_, idx) => idx !== i))} className="p-1.5 hover:bg-red-100 rounded-lg text-red-500"><Trash2 size={14} /></button>
+                      <button onClick={() => openEditSkill(i)} className="p-1.5 hover:bg-indigo-500/10 rounded-lg text-indigo-500 text-xs"><Pencil size={14} /></button>
+                      <button onClick={() => setSkills(p => p.filter((_, idx) => idx !== i))} className="p-1.5 hover:bg-red-500/10 rounded-lg text-red-500"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 </div>
@@ -306,11 +309,12 @@ export default function BecomeProviderPage() {
             </div>
           )}
           <div className="flex gap-3">
-            <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl font-bold text-sm border border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-2">
+            <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl font-bold text-sm btn-ghost flex items-center justify-center gap-2">
               <ChevronLeft size={16} /> Orqaga
             </button>
             <button onClick={() => { if (!step3Valid) return toast.error("Kamida 1 ta xizmat qo'shing"); setShowSummary(true); }}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 ${step3Valid ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}>
+              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 ${step3Valid ? "btn-primary" : "cursor-not-allowed"}`}
+              style={!step3Valid ? { backgroundColor: "var(--sidebar-hover)", color: "var(--muted)" } : undefined}>
               Yuborish <ChevronRight size={16} />
             </button>
           </div>
@@ -320,67 +324,67 @@ export default function BecomeProviderPage() {
       {/* ─── Skill Modal ─── */}
       {showSkillModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="glass-modal fade-in p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold">Xizmat {editingIdx !== null ? "tahrirlash" : "qo'shish"}</h3>
-              <button onClick={() => { resetSkillModal(); setShowSkillModal(false); }}><X size={20} className="text-gray-400" /></button>
+              <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>Xizmat {editingIdx !== null ? "tahrirlash" : "qo'shish"}</h3>
+              <button onClick={() => { resetSkillModal(); setShowSkillModal(false); }}><X size={20} style={{ color: "var(--muted)" }} /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kategoriya *</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Kategoriya *</label>
                 <select value={selCat} onChange={e => { setSelCat(e.target.value); setSelSkill(""); setSelSkillName(""); }}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none">
+                  className="glass-input">
                   <option value="">Tanlang...</option>
                   {categories.filter(c => c.isActive).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               {selCat && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Xizmat turi *</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Xizmat turi *</label>
                   <select value={selSkill} onChange={e => { setSelSkill(e.target.value); setSelSkillName(catSkills.find((s: any) => s.id === e.target.value)?.name || ""); }}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    className="glass-input">
                     <option value="">Tanlang...</option>
                     {catSkills.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Xizmat uslubi *</label>
+                <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>Xizmat uslubi *</label>
                 <div className="space-y-2">
                   {(["ORGANIZED","UNORGANIZED","BOTH"] as const).map(t => (
-                    <label key={t} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${serviceType === t ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-200"}`}>
+                    <label key={t} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${serviceType === t ? "border-indigo-400 bg-indigo-500/10" : ""}`} style={serviceType !== t ? { borderColor: "var(--border-strong)" } : undefined}>
                       <input type="radio" name="serviceType" value={t} checked={serviceType === t} onChange={() => setServiceType(t)} className="accent-indigo-600" />
-                      <span className="text-sm">{SERVICE_TYPE_LABELS[t]}</span>
+                      <span className="text-sm flex items-center gap-1.5" style={{ color: "var(--text)" }}>{SERVICE_TYPE_LABELS[t].icon} {SERVICE_TYPE_LABELS[t].label}</span>
                     </label>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ish staji (yil) *</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ish staji (yil) *</label>
                 <input type="number" min={0.5} max={50} step={0.5} value={expYears} onChange={e => setExpYears(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  className="glass-input" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Narx (dan) so'm</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Narx (dan) so'm</label>
                   <input type="number" value={priceFrom} onChange={e => setPriceFrom(e.target.value)} placeholder="50000"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    className="glass-input" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Narx (gacha) so'm</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Narx (gacha) so'm</label>
                   <input type="number" value={priceTo} onChange={e => setPriceTo(e.target.value)} placeholder="200000"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    className="glass-input" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tavsif * (kamida 20 belgi)</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tavsif * (kamida 20 belgi)</label>
                 <textarea rows={3} value={desc} onChange={e => setDesc(e.target.value)}
                   placeholder="Men bu sohada 3 yildan beri ishlayman..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none" />
+                  className="glass-textarea" />
               </div>
               <div className="flex gap-2 pt-1">
-                <button onClick={() => { resetSkillModal(); setShowSkillModal(false); }} className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 hover:bg-gray-50">Bekor</button>
-                <button onClick={addSkill} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold">
+                <button onClick={() => { resetSkillModal(); setShowSkillModal(false); }} className="flex-1 py-2.5 rounded-xl text-sm font-medium btn-ghost">Bekor</button>
+                <button onClick={addSkill} className="flex-1 py-2.5 btn-primary rounded-xl text-sm font-bold">
                   {editingIdx !== null ? "Saqlash" : "Qo'shish"}
                 </button>
               </div>
@@ -392,27 +396,27 @@ export default function BecomeProviderPage() {
       {/* ─── Summary Modal ─── */}
       {showSummary && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4">Ariza xulosasi</h3>
+          <div className="glass-modal fade-in p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold mb-4" style={{ color: "var(--text)" }}>Ariza xulosasi</h3>
             <div className="space-y-3 text-sm">
-              <div className="bg-gray-50 rounded-xl p-3">
-                <div className="font-semibold text-gray-700 mb-1">O'zingiz haqingizda</div>
-                <p className="text-gray-600 line-clamp-3">{aboutMe}</p>
+              <div className="rounded-xl p-3" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                <div className="font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>O'zingiz haqingizda</div>
+                <p className="line-clamp-3" style={{ color: "var(--text)" }}>{aboutMe}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <div className="font-semibold text-gray-700 mb-1">Tumanlar ({districts.length})</div>
-                <p className="text-gray-600">{districts.join(", ")}</p>
+              <div className="rounded-xl p-3" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                <div className="font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>Tumanlar ({districts.length})</div>
+                <p style={{ color: "var(--text)" }}>{districts.join(", ")}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <div className="font-semibold text-gray-700 mb-1">Xizmatlar ({skills.length})</div>
-                {skills.map((s, i) => <div key={i} className="text-gray-600">• {s.skillName} — {s.experienceYears} yil</div>)}
+              <div className="rounded-xl p-3" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                <div className="font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>Xizmatlar ({skills.length})</div>
+                {skills.map((s, i) => <div key={i} style={{ color: "var(--text)" }}>&#8226; {s.skillName} — {s.experienceYears} yil</div>)}
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowSummary(false)} className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 hover:bg-gray-50">Orqaga</button>
+              <button onClick={() => setShowSummary(false)} className="flex-1 py-2.5 rounded-xl text-sm font-medium btn-ghost">Orqaga</button>
               <button onClick={handleSubmit} disabled={submitting}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-sm font-bold">
-                {submitting ? "Yuborilmoqda..." : "✅ Tasdiqlash va yuborish"}
+                className="flex-1 py-2.5 btn-success rounded-xl text-sm font-bold disabled:opacity-60">
+                {submitting ? "Yuborilmoqda..." : "Tasdiqlash va yuborish"}
               </button>
             </div>
           </div>

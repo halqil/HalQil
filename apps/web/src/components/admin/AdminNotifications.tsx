@@ -3,6 +3,7 @@
 import { useState } from "react";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
+import { Send, Bell, Megaphone } from "lucide-react";
 
 export default function AdminNotifications() {
   const [title, setTitle] = useState("");
@@ -31,20 +32,20 @@ export default function AdminNotifications() {
   };
 
   return (
-    <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold mb-6">Xabarnoma yuborish (Broadcast)</h2>
+    <div className="glass-card p-8 max-w-2xl mx-auto">
+      <h2 className="text-xl font-bold mb-6 flex items-center gap-2" style={{ color: "var(--text)" }}><Megaphone className="w-5 h-5" /> Xabarnoma yuborish (Broadcast)</h2>
       <form onSubmit={handleBroadcast} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Kimlarga yuborilsin?</label>
-          <select value={targetRole} onChange={e => setTargetRole(e.target.value)} className="w-full border rounded-xl p-3 bg-gray-50">
+          <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Kimlarga yuborilsin?</label>
+          <select value={targetRole} onChange={e => setTargetRole(e.target.value)} className="glass-input">
             <option value="ALL">Barchaga</option>
             <option value="USER">Faqat Mijozlarga</option>
             <option value="PROVIDER">Faqat Provayderlarga</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Xabar turi</label>
-          <select value={type} onChange={e => setType(e.target.value)} className="w-full border rounded-xl p-3 bg-gray-50">
+          <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Xabar turi</label>
+          <select value={type} onChange={e => setType(e.target.value)} className="glass-input">
             <option value="SYSTEM">Tizim xabari (System)</option>
             <option value="ANNOUNCEMENT">E'lon (Announcement)</option>
             <option value="WARNING">Ogohlantirish (Warning)</option>
@@ -52,15 +53,15 @@ export default function AdminNotifications() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Sarlavha</label>
-          <input required type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full border rounded-xl p-3 bg-gray-50" />
+          <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Sarlavha</label>
+          <input required type="text" value={title} onChange={e => setTitle(e.target.value)} className="glass-input" />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Xabar matni</label>
-          <textarea required value={message} onChange={e => setMessage(e.target.value)} rows={4} className="w-full border rounded-xl p-3 bg-gray-50"></textarea>
+          <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Xabar matni</label>
+          <textarea required value={message} onChange={e => setMessage(e.target.value)} rows={4} className="glass-textarea"></textarea>
         </div>
-        <button disabled={loading} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50">
-          {loading ? "Yuborilmoqda..." : "Yuborish"}
+        <button disabled={loading} className="btn-primary w-full py-3">
+          {loading ? "Yuborilmoqda..." : <><Send className="w-4 h-4 inline mr-2" />Yuborish</>}
         </button>
       </form>
     </div>
