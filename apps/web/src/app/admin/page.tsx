@@ -17,6 +17,7 @@ import AdminNotifications from "../../components/admin/AdminNotifications";
 import AdminChat from "../../components/admin/AdminChat";
 import AdminApplications from "../../components/admin/AdminApplications";
 import AdminDisputes from "../../components/admin/AdminDisputes";
+import AdminCategories from "../../components/admin/AdminCategories";
 
 
 interface Skill {
@@ -40,23 +41,10 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState("categories");
   const [orgApplications, setOrgApplications] = useState<Record<string, any>[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [disputes, setDisputes] = useState<Record<string, any>[]>([]);
 
-  const [showCatModal, setShowCatModal] = useState(false);
-  const [catName, setCatName] = useState("");
-  const [catIcon, setCatIcon] = useState("");
-  const [catLoading, setCatLoading] = useState(false);
-
-  const [showSkillModal, setShowSkillModal] = useState(false);
-  const [skillCategoryId, setSkillCategoryId] = useState("");
-  const [skillCategoryName, setSkillCategoryName] = useState("");
-  const [skillName, setSkillName] = useState("");
-  const [skillDesc, setSkillDesc] = useState("");
-  const [skillLoading, setSkillLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) { router.push("/auth/login"); return; }
@@ -67,12 +55,10 @@ export default function AdminDashboard() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [catsRes, orgAppsRes, disputesRes] = await Promise.all([
-        api.get("/admin/categories"),
+      const [orgAppsRes, disputesRes] = await Promise.all([
         api.get("/admin/organizations/applications"),
         api.get("/admin/orders/disputed", { params: { status: "DISPUTED" } })
       ]);
-      setCategories(catsRes.data.data);
       setOrgApplications(orgAppsRes.data.data);
       const dData = disputesRes.data.data;
       setDisputes(dData.orders ?? dData ?? []);
@@ -83,89 +69,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const toggleExpand = (catId: string) => {
-    setExpandedCats(prev => {
-      const next = new Set(prev);
-      next.has(catId) ? next.delete(catId) : next.add(catId);
-      return next;
-    });
-  };
-
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!catName.trim()) return;
-    setCatLoading(true);
-    try {
-      await api.post("/admin/categories", { name: catName.trim(), icon: catIcon.trim() || undefined });
-      toast.success("Kategoriya qo'shildi!");
-      setCatName(""); setCatIcon("");
-      setShowCatModal(false);
-      fetchAll();
-    } catch (err) {
-      const error = err as AxiosError<{ error: string }>;
-      toast.error(error.response?.data?.error || "Xatolik yuz berdi");
-    } finally {
-      setCatLoading(false);
-    }
-  };
-
-  const handleToggleCategory = async (catId: string) => {
-    setActionLoading(catId);
-    try {
-      const res = await api.patch(`/admin/categories/${catId}/toggle`);
-      if (res.data.success) {
-        setCategories(prev => prev.map(c =>
-          c.id === catId ? { ...c, isActive: res.data.data.isActive, skills: c.skills.map(s => ({ ...s, isActive: res.data.data.isActive ? s.isActive : false })) } : c
-        ));
-      }
-    } catch { toast.error("Xatolik yuz berdi"); }
-    finally { setActionLoading(null); }
-  };
-
-  const openSkillModal = (cat: Category) => {
-    setSkillCategoryId(cat.id);
-    setSkillCategoryName(cat.name);
-    setSkillName(""); setSkillDesc("");
-    setShowSkillModal(true);
-  };
-
-  const handleCreateSkill = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!skillName.trim()) return;
-    setSkillLoading(true);
-    try {
-      await api.post("/admin/skills", {
-        categoryId: skillCategoryId,
-        name: skillName.trim(),
-        description: skillDesc.trim() || undefined,
-      });
-      toast.success("Xizmat turi qo'shildi!");
-      setShowSkillModal(false);
-      fetchAll();
-    } catch (err) {
-      const error = err as AxiosError<{ error: string }>;
-      toast.error(error.response?.data?.error || "Xatolik yuz berdi");
-    } finally {
-      setSkillLoading(false);
-    }
-  };
-
-  const handleToggleSkill = async (skillId: string, catId: string) => {
-    setActionLoading(skillId);
-    try {
-      const res = await api.patch(`/admin/skills/${skillId}/toggle`);
-      if (res.data.success) {
-        setCategories(prev => prev.map(c =>
-          c.id === catId ? { ...c, skills: c.skills.map(s => s.id === skillId ? { ...s, isActive: res.data.data.isActive } : s) } : c
-        ));
-      }
-    } catch (err) {
-      const error = err as AxiosError<{ error: string }>;
-      toast.error(error.response?.data?.error || "Xatolik yuz berdi");
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   const handleOrgApplication = async (id: string, action: "approve" | "reject") => {
     setActionLoading(id);
@@ -230,109 +133,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* CATEGORIES TAB */}
-      {activeTab === "categories" && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Kategoriyalar & Xizmat turlari</h2>
-            <button onClick={() => setShowCatModal(true)} className="btn-primary text-sm">
-              <Plus size={16} /> Kategoriya qo'sh
-            </button>
-          </div>
-
-          {categories.length === 0 && (
-            <div className="text-center py-16 glass-card">
-              <Folder className="mx-auto mb-3" size={40} style={{ color: "var(--muted)" }} />
-              <p style={{ color: "var(--muted)" }}>Hali kategoriya yo'q</p>
-            </div>
-          )}
-
-          {categories.map(cat => {
-            const isExpanded = expandedCats.has(cat.id);
-            const isToggling = actionLoading === cat.id;
-            return (
-              <div key={cat.id} className="glass-card overflow-hidden">
-                <div className="flex items-center gap-3 p-4">
-                  <button onClick={() => toggleExpand(cat.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${cat.isActive ? "bg-indigo-500/10" : ""}`}
-                      style={{ backgroundColor: cat.isActive ? undefined : "var(--sidebar-hover)" }}>
-                      {cat.icon || <Folder size={18} style={{ color: "var(--muted)" }} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold" style={{ color: "var(--text)" }}>{cat.name}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--muted)" }}>
-                          {cat.skills.length} xizmat
-                        </span>
-                        {!cat.isActive && (
-                          <span className="text-xs text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full">Nofaol</span>
-                        )}
-                      </div>
-                    </div>
-                    <span style={{ color: "var(--muted)" }}>
-                      {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </span>
-                  </button>
-
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => openSkillModal(cat)}
-                      className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 text-xs font-semibold transition-colors">
-                      <Plus size={13} /> Xizmat
-                    </button>
-                    <button onClick={() => handleToggleCategory(cat.id)} disabled={isToggling}
-                      className={`p-1.5 rounded-lg transition-colors ${cat.isActive ? "text-green-500 hover:bg-green-500/10" : "hover:bg-[var(--sidebar-hover)]"}`}
-                      style={{ color: cat.isActive ? undefined : "var(--muted)" }}>
-                      {isToggling ? <Loader2 size={20} className="animate-spin" /> :
-                        cat.isActive ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-                    </button>
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div style={{ borderTop: "1px solid var(--border-strong)", backgroundColor: "var(--sidebar-hover)" }}>
-                    {cat.skills.length === 0 ? (
-                      <div className="py-5 text-center">
-                        <p className="text-sm" style={{ color: "var(--muted)" }}>Bu kategoriyada xizmat turlari yo'q</p>
-                        <button onClick={() => openSkillModal(cat)} className="mt-2 text-indigo-500 text-sm font-medium hover:underline">
-                          + Birinchisini qo'shing
-                        </button>
-                      </div>
-                    ) : (
-                      <ul>
-                        {cat.skills.map((skill, idx) => {
-                          const isSkillToggling = actionLoading === skill.id;
-                          return (
-                            <li key={skill.id}>
-                              <div className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--card-hover)] transition-colors">
-                                <Wrench size={14} className={skill.isActive ? "text-emerald-500" : ""} style={{ color: skill.isActive ? undefined : "var(--muted)" }} />
-                                <span className={`flex-1 text-sm font-medium ${!skill.isActive ? "line-through" : ""}`}
-                                  style={{ color: skill.isActive ? "var(--text)" : "var(--muted)" }}>
-                                  {skill.name}
-                                </span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                  skill.isActive ? "bg-green-500/10 text-green-500" : "bg-gray-500/10"
-                                }`} style={{ color: skill.isActive ? undefined : "var(--muted)" }}>
-                                  {skill.isActive ? "Faol" : "Nofaol"}
-                                </span>
-                                <button onClick={() => handleToggleSkill(skill.id, cat.id)} disabled={isSkillToggling}
-                                  className={`p-1 rounded-lg transition-colors ${skill.isActive ? "text-green-500 hover:bg-green-500/10" : "hover:bg-[var(--sidebar-hover)]"}`}
-                                  style={{ color: skill.isActive ? undefined : "var(--muted)" }}>
-                                  {isSkillToggling ? <Loader2 size={18} className="animate-spin" /> :
-                                    skill.isActive ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                                </button>
-                              </div>
-                              {idx < cat.skills.length - 1 && <div className="glass-divider mx-4" />}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {activeTab === "categories" && <AdminCategories />}
 
       {/* ORG APPLICATIONS TAB */}
       {activeTab === "org_applications" && (
@@ -378,68 +179,7 @@ export default function AdminDashboard() {
       {activeTab === "notifications" && <AdminNotifications />}
       {activeTab === "disputes" && <AdminDisputes />}
 
-      {/* MODAL: New Category */}
-      {showCatModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-modal p-7 w-full max-w-md fade-in">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold" style={{ color: "var(--text)" }}>Yangi kategoriya</h3>
-              <button onClick={() => setShowCatModal(false)} className="hover:bg-[var(--sidebar-hover)] p-1.5 rounded-lg transition-colors" style={{ color: "var(--muted)" }}>
-                <X size={22} />
-              </button>
-            </div>
-            <form onSubmit={handleCreateCategory} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Nomi *</label>
-                <input type="text" value={catName} onChange={e => setCatName(e.target.value)}
-                  placeholder="Masalan: Santexnika" className="glass-input" required autoFocus />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ikonka (ixtiyoriy)</label>
-                <input type="text" value={catIcon} onChange={e => setCatIcon(e.target.value)}
-                  placeholder="Emoji yoki matn" className="glass-input" />
-              </div>
-              <button type="submit" disabled={catLoading} className="btn-primary w-full py-3">
-                {catLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                Qo'shish
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* MODAL: New Skill */}
-      {showSkillModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-modal p-7 w-full max-w-md fade-in">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-xl font-bold" style={{ color: "var(--text)" }}>Yangi xizmat turi</h3>
-              <button onClick={() => setShowSkillModal(false)} className="hover:bg-[var(--sidebar-hover)] p-1.5 rounded-lg transition-colors" style={{ color: "var(--muted)" }}>
-                <X size={22} />
-              </button>
-            </div>
-            <p className="text-sm text-indigo-500 font-medium mb-5 bg-indigo-500/10 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5">
-              <Folder size={14} /> {skillCategoryName}
-            </p>
-            <form onSubmit={handleCreateSkill} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Xizmat nomi *</label>
-                <input type="text" value={skillName} onChange={e => setSkillName(e.target.value)}
-                  placeholder="Masalan: Kran ta'mirlash" className="glass-input" required autoFocus />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tavsif (ixtiyoriy)</label>
-                <textarea value={skillDesc} onChange={e => setSkillDesc(e.target.value)}
-                  placeholder="Qisqacha izoh..." rows={2} className="glass-textarea" />
-              </div>
-              <button type="submit" disabled={skillLoading} className="btn-success w-full py-3">
-                {skillLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                Qo'shish
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
