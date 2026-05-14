@@ -417,25 +417,36 @@ export const resolveDispute = async (req: Request, res: Response, next: NextFunc
       return res.status(400).json({ success: false, error: 'Buyurtma DISPUTED holatida emas' });
     }
 
+    if (!note?.trim()) {
+      return res.status(400).json({ success: false, error: 'Admin eslatmasi (note) majburiy' });
+    }
+
     const provider = await prisma.providerProfile.findUnique({ where: { id: order.providerId } });
+    const adminId = req.user?.userId;
+    const now = new Date();
 
     if (decision === 'PROVIDER_FAULT') {
-      await prisma.order.update({ where: { id }, data: { status: 'FAILED' } });
+      await prisma.order.update({
+        where: { id },
+        data: { status: 'FAILED', resolvedBy: adminId, resolvedAt: now, resolveNote: note.trim(), resolveDecision: decision }
+      });
       if (provider) {
         await prisma.providerProfile.update({ where: { id: order.providerId }, data: { failedOrders: provider.failedOrders + 1 } });
         await recalcProviderReliability(order.providerId);
-        await sendNotification(provider.userId, 'Admin qaror: Siz aybdor topildingiz', note || 'Shikoyat asosli topildi. Buyurtma FAILED qilindi.', `/orders/${id}`);
+        await sendNotification(provider.userId, 'Admin qaror: Siz aybdor topildingiz', note.trim(), `/orders/${id}`);
       }
       await sendNotification(order.userId, 'Shikoyatingiz ko\'rib chiqildi', 'Provayder aybdor topildi.', `/orders/${id}`);
     } else {
-      await prisma.order.update({ where: { id }, data: { status: 'COMPLETED' } });
-      // Provider: successfulOrders++
+      await prisma.order.update({
+        where: { id },
+        data: { status: 'COMPLETED', resolvedBy: adminId, resolvedAt: now, resolveNote: note.trim(), resolveDecision: decision }
+      });
       if (provider) {
         await prisma.providerProfile.update({ where: { id: order.providerId }, data: { successfulOrders: provider.successfulOrders + 1 } });
         await recalcProviderReliability(order.providerId);
         await sendNotification(provider.userId, 'Admin qaror: Shikoyat asossiz', 'Xizmat COMPLETED deb belgilandi.', `/orders/${id}`);
       }
-      await sendNotification(order.userId, 'Shikoyatingiz asossiz topildi', note || 'Admin shikoyatingizni asossiz deb topdi.', `/orders/${id}`);
+      await sendNotification(order.userId, 'Shikoyatingiz asossiz topildi', note.trim(), `/orders/${id}`);
     }
 
     res.json({ success: true, data: { message: 'Qaror qabul qilindi' } });

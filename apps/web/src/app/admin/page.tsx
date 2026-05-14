@@ -9,12 +9,15 @@ import toast from "react-hot-toast";
 import {
   CheckCircle, XCircle, Users, LayoutList, Plus, ChevronDown,
   ChevronRight, ToggleLeft, ToggleRight, X, Folder, Wrench, Loader2, Building,
-  MessageSquare, Bell, AlertTriangle, User, Scale
+  MessageSquare, Bell, AlertTriangle, User
 } from "lucide-react";
+
 import AdminUsers from "../../components/admin/AdminUsers";
 import AdminNotifications from "../../components/admin/AdminNotifications";
 import AdminChat from "../../components/admin/AdminChat";
 import AdminApplications from "../../components/admin/AdminApplications";
+import AdminDisputes from "../../components/admin/AdminDisputes";
+
 
 interface Skill {
   id: string;
@@ -42,8 +45,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [disputes, setDisputes] = useState<Record<string, any>[]>([]);
-  const [resolveNote, setResolveNote] = useState<string>("");
-  const [resolveOrderId, setResolveOrderId] = useState<string | null>(null);
 
   const [showCatModal, setShowCatModal] = useState(false);
   const [catName, setCatName] = useState("");
@@ -69,11 +70,12 @@ export default function AdminDashboard() {
       const [catsRes, orgAppsRes, disputesRes] = await Promise.all([
         api.get("/admin/categories"),
         api.get("/admin/organizations/applications"),
-        api.get("/admin/orders/disputed")
+        api.get("/admin/orders/disputed", { params: { status: "DISPUTED" } })
       ]);
       setCategories(catsRes.data.data);
       setOrgApplications(orgAppsRes.data.data);
-      setDisputes(disputesRes.data.data || []);
+      const dData = disputesRes.data.data;
+      setDisputes(dData.orders ?? dData ?? []);
     } catch (err) {
       toast.error("Ma'lumotlarni yuklashda xatolik");
     } finally {
@@ -187,22 +189,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleResolveDispute = async (orderId: string, decision: string) => {
-    setActionLoading(orderId);
-    try {
-      const note = resolveNote || (decision === 'PROVIDER_FAULT' ? 'Shikoyat asosli topildi' : 'Shikoyat asossiz topildi');
-      await api.patch(`/admin/orders/${orderId}/resolve`, { decision, note });
-      toast.success("Qaror qabul qilindi");
-      setResolveOrderId(null);
-      setResolveNote("");
-      fetchAll();
-    } catch (err) {
-      const error = err as AxiosError<{ error: string }>;
-      toast.error(error.response?.data?.error || "Xatolik");
-    } finally {
-      setActionLoading(null);
-    }
-  };
+
+
 
   if (loading) return (
     <div className="flex justify-center items-center py-20">
@@ -211,13 +199,13 @@ export default function AdminDashboard() {
   );
 
   const tabs = [
-    { key: "categories", label: "Kategoriyalar", icon: <LayoutList size={16} /> },
-    { key: "applications", label: "Provayder arizalari", icon: <Users size={16} /> },
+    { key: "categories",       label: "Kategoriyalar",      icon: <LayoutList size={16} /> },
+    { key: "applications",     label: "Provayder arizalari", icon: <Users size={16} /> },
     { key: "org_applications", label: `Tashkilot (${orgApplications.filter(a => a.status === "PENDING").length})`, icon: <Building size={16} /> },
-    { key: "disputes", label: `Shikoyatlar (${disputes.length})`, icon: <AlertTriangle size={16} /> },
-    { key: "users", label: "Foydalanuvchilar", icon: <User size={16} /> },
-    { key: "chat", label: "Chatlar", icon: <MessageSquare size={16} /> },
-    { key: "notifications", label: "Xabarnoma", icon: <Bell size={16} /> },
+    { key: "disputes",         label: `Shikoyatlar (${disputes.length})`, icon: <AlertTriangle size={16} /> },
+    { key: "users",            label: "Foydalanuvchilar",   icon: <User size={16} /> },
+    { key: "chat",             label: "Chatlar",            icon: <MessageSquare size={16} /> },
+    { key: "notifications",    label: "Xabarnoma",          icon: <Bell size={16} /> },
   ];
 
   return (
@@ -388,88 +376,7 @@ export default function AdminDashboard() {
       {activeTab === "users" && <AdminUsers />}
       {activeTab === "chat" && <AdminChat />}
       {activeTab === "notifications" && <AdminNotifications />}
-
-      {/* DISPUTES TAB */}
-      {activeTab === "disputes" && (
-        <div className="glass-card p-8">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2" style={{ color: "var(--text)" }}>
-            <AlertTriangle className="text-orange-500" size={22} />
-            Shikoyatlar ({disputes.length})
-          </h2>
-          {disputes.length === 0 ? (
-            <div className="text-center py-16">
-              <CheckCircle className="mx-auto text-green-500/40 mb-3" size={48} />
-              <p style={{ color: "var(--muted)" }}>Hozircha shikoyatlar yo'q</p>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {disputes.map(order => (
-                <div key={order.id} className="glass-card p-5 space-y-4 bg-orange-500/5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold" style={{ color: "var(--text)" }}>{order.skill?.name}</span>
-                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full font-bold">DISPUTED</span>
-                      </div>
-                      <div className="text-sm" style={{ color: "var(--muted)" }}>{new Date(order.createdAt).toLocaleDateString("uz-UZ")}</div>
-                    </div>
-                    <a href={`/orders/${order.id}`} target="_blank" className="text-xs text-blue-500 hover:underline flex-shrink-0">Chat tarixi</a>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="glass-card p-3 bg-blue-500/5 !rounded-xl">
-                      <div className="text-xs text-blue-500 font-medium mb-1 flex items-center gap-1"><User size={12} /> Mijoz</div>
-                      <div className="font-medium text-sm" style={{ color: "var(--text)" }}>{order.user?.name}</div>
-                    </div>
-                    <div className="glass-card p-3 bg-emerald-500/5 !rounded-xl">
-                      <div className="text-xs text-emerald-500 font-medium mb-1 flex items-center gap-1"><Wrench size={12} /> Provayder</div>
-                      <div className="font-medium text-sm" style={{ color: "var(--text)" }}>{order.provider?.user?.name}</div>
-                    </div>
-                  </div>
-
-                  {(order.unsuccessReason || order.finishType === 'UNSUCCESSFUL') && (
-                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3">
-                      <div className="text-xs font-bold text-orange-500 mb-1">Provayder sababi ({order.unsuccessCategory})</div>
-                      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{order.unsuccessReason || '-'}</p>
-                    </div>
-                  )}
-
-                  {order.disputeReason && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-                      <div className="text-xs font-bold text-red-500 mb-1 flex items-center gap-1"><AlertTriangle size={12} /> Mijoz shikoyati</div>
-                      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{order.disputeReason}</p>
-                    </div>
-                  )}
-
-                  {resolveOrderId === order.id ? (
-                    <div className="space-y-2">
-                      <input type="text" placeholder="Admin eslatmasi (ixtiyoriy)" value={resolveNote}
-                        onChange={e => setResolveNote(e.target.value)} className="glass-input" />
-                      <div className="flex gap-2">
-                        <button onClick={() => handleResolveDispute(order.id, 'PROVIDER_FAULT')}
-                          disabled={actionLoading === order.id} className="btn-danger flex-1 text-sm py-2">
-                          Provayder aybdor
-                        </button>
-                        <button onClick={() => handleResolveDispute(order.id, 'USER_FAULT')}
-                          disabled={actionLoading === order.id} className="btn-primary flex-1 text-sm py-2">
-                          User aybdor
-                        </button>
-                        <button onClick={() => { setResolveOrderId(null); setResolveNote(""); }}
-                          className="btn-ghost text-sm px-3">Bekor</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={() => setResolveOrderId(order.id)}
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2">
-                      <Scale size={16} /> Qaror chiqarish
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {activeTab === "disputes" && <AdminDisputes />}
 
       {/* MODAL: New Category */}
       {showCatModal && (

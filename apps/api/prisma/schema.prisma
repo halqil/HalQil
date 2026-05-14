@@ -133,7 +133,9 @@ model User {
   adminChatsAsAdmin    AdminChat[]      @relation("AdminChatsAsAdmin")
   adminChatsAsTarget   AdminChat[]      @relation("AdminChatsAsTarget")
   adminChatMessages    AdminChatMessage[] @relation("AdminChatMessages")
-  providerApplications ProviderApplication[]
+  providerApplications ProviderApplication[] @relation("ApplicationUser")
+  reviewedApplications ProviderApplication[] @relation("ApplicationReviewer")
+  resolvedOrders       Order[]          @relation("OrderResolver")
 }
 
 model Category {
@@ -329,6 +331,12 @@ model Order {
   disputeReason       String?         // user shikoyati
   autoCompleted       Boolean         @default(false)
   awaitingConfirmAt   DateTime?       // provayder finish bosgan vaqt
+  // Dispute hal qilish maydonlari
+  resolvedBy          String?         // qaysi admin hal qildi (FK → User)
+  resolvedAt          DateTime?       // qachon hal qilindi
+  resolveNote         String?         // admin qarori sababi
+  resolveDecision     String?         // 'PROVIDER_FAULT' | 'USER_FAULT'
+  resolver            User?           @relation("OrderResolver", fields: [resolvedBy], references: [id])
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -409,18 +417,23 @@ model AdminChatMessage {
 // ─────────────────────── PROVIDER APPLICATION ───────────────────────
 
 model ProviderApplication {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status         String   @default("PENDING")  // PENDING | APPROVED | REJECTED
+  user           User      @relation("ApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
+  status         String    @default("PENDING")  // PENDING | APPROVED | REJECTED
   rejectionNote  String?
   aboutMe        String
   whyJoin        String
   portfolioLink  String?
   workDistricts  String[]
   dailyLimit     Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // Admin ko'rib chiqish maydonlari
+  reviewedBy     String?   // qaysi admin ko'rib chiqdi (FK → User)
+  reviewedAt     DateTime? // qachon ko'rib chiqildi
+  adminMessage   String?   // qabul xabari yoki rad sababi
+  reviewer       User?     @relation("ApplicationReviewer", fields: [reviewedBy], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   skills          ProviderApplicationSkill[]
   providerProfile ProviderProfile[]

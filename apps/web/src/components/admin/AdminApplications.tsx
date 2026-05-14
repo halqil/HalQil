@@ -3,50 +3,48 @@ import { useState, useEffect, useCallback } from "react";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 import { AxiosError } from "axios";
-import { Eye, Check, X, MessageSquare, Search, ChevronLeft, ChevronRight, ExternalLink, Clock, CheckCircle, XCircle, Building, Home, RefreshCw } from "lucide-react";
+import { timeAgo } from "@/lib/timeAgo";
+import {
+  Eye, Check, X, MessageSquare, Search, ChevronLeft, ChevronRight,
+  ExternalLink, Clock, CheckCircle, XCircle, Building, Home, RefreshCw,
+  MapPin, Wrench, User, Calendar, ShieldCheck
+} from "lucide-react";
 
 type Application = {
   id: string; status: string; createdAt: string;
   skillsCount: number; districts: string[];
-  user: { id: string; name: string; firstName?: string; lastName?: string; username?: string; walletId?: string; email?: string; avatar?: string; isOnline?: boolean; reliability?: number; successfulOrders?: number; cancelledOrders?: number; createdAt?: string; };
+  reviewedBy?: { id: string; name: string; firstName?: string; lastName?: string } | null;
+  reviewedAt?: string | null;
+  adminMessage?: string | null;
+  user: {
+    id: string; name: string; firstName?: string; lastName?: string;
+    username?: string; walletId?: string; email?: string; avatar?: string;
+    isOnline?: boolean; reliability?: number;
+  };
 };
 
 type AppDetail = Application & {
   aboutMe: string; whyJoin: string; portfolioLink?: string;
   workDistricts: string[]; dailyLimit?: number; rejectionNote?: string;
-  skills: Array<{ id: string; skillId: string; serviceType: string; experienceYears: number; priceFrom?: number; priceTo?: number; description: string; portfolioImages: string[]; skill: { id: string; name: string; category: { id: string; name: string } }; }>;
+  skills: Array<{
+    id: string; skillId: string; serviceType: string; experienceYears: number;
+    priceFrom?: number; priceTo?: number; description: string; portfolioImages: string[];
+    skill: { id: string; name: string; category: { id: string; name: string } };
+  }>;
 };
 
-const STATUS_BADGE_ICONS: Record<string, { icon: typeof Clock; label: string }> = {
-  PENDING: { icon: Clock, label: "Kutilmoqda" },
-  APPROVED: { icon: CheckCircle, label: "Tasdiqlandi" },
-  REJECTED: { icon: XCircle, label: "Rad etildi" },
-};
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: "bg-amber-500/10 text-amber-500",
-  APPROVED: "bg-emerald-500/10 text-emerald-500",
-  REJECTED: "bg-red-500/10 text-red-500",
-};
-const SERVICE_LABELS_DATA: Record<string, { icon: typeof Building; label: string }> = {
-  ORGANIZED: { icon: Building, label: "Tashkilotli" },
-  UNORGANIZED: { icon: Home, label: "Uyga boradi" },
-  BOTH: { icon: RefreshCw, label: "Ikkalasi" },
-  INDEPENDENT: { icon: RefreshCw, label: "Ikkalasi" },
+const STATUS_META: Record<string, { icon: any; label: string; color: string }> = {
+  PENDING:  { icon: Clock,        label: "Kutilmoqda", color: "bg-amber-500/10 text-amber-500" },
+  APPROVED: { icon: CheckCircle,  label: "Tasdiqlandi", color: "bg-emerald-500/10 text-emerald-500" },
+  REJECTED: { icon: XCircle,      label: "Rad etildi",  color: "bg-red-500/10 text-red-500" },
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const data = STATUS_BADGE_ICONS[status];
-  if (!data) return null;
-  const Icon = data.icon;
-  return <span className="inline-flex items-center gap-1"><Icon size={12} /> {data.label}</span>;
-}
-
-function ServiceLabel({ serviceType }: { serviceType: string }) {
-  const data = SERVICE_LABELS_DATA[serviceType];
-  if (!data) return null;
-  const Icon = data.icon;
-  return <span className="inline-flex items-center gap-1"><Icon size={12} /> {data.label}</span>;
-}
+const FILTER_TABS = [
+  { key: "ALL",      label: "Barchasi" },
+  { key: "PENDING",  label: "Kutilmoqda" },
+  { key: "APPROVED", label: "Tasdiqlandi" },
+  { key: "REJECTED", label: "Rad etildi" },
+];
 
 export default function AdminApplications() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -60,20 +58,19 @@ export default function AdminApplications() {
   const [detail, setDetail] = useState<AppDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // Action modals
   const [approveApp, setApproveApp] = useState<string | null>(null);
-  const [rejectApp, setRejectApp] = useState<string | null>(null);
-  const [chatApp, setChatApp] = useState<string | null>(null);
-  const [approveMsg, setApproveMsg] = useState("");
+  const [rejectApp, setRejectApp]   = useState<string | null>(null);
+  const [chatApp, setChatApp]       = useState<string | null>(null);
+  const [approveMsg, setApproveMsg]     = useState("");
   const [rejectReason, setRejectReason] = useState("");
-  const [chatMsg, setChatMsg] = useState("");
+  const [chatMsg, setChatMsg]           = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchApplications = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("/admin/applications", {
-        params: { status: statusFilter, search: search || undefined, page, limit: 20 }
+        params: { status: statusFilter === "ALL" ? undefined : statusFilter, search: search || undefined, page, limit: 20 }
       });
       const d = res.data.data;
       setApplications(d.applications);
@@ -104,8 +101,7 @@ export default function AdminApplications() {
       toast.success("Ariza tasdiqlandi!");
       setApproveApp(null); setApproveMsg(""); setDetail(null); fetchApplications();
     } catch (e) {
-      const err = e as AxiosError<{ error: string }>;
-      toast.error(err.response?.data?.error || "Xatolik");
+      toast.error((e as AxiosError<{ error: string }>).response?.data?.error || "Xatolik");
     } finally { setActionLoading(false); }
   };
 
@@ -118,8 +114,7 @@ export default function AdminApplications() {
       toast.success("Ariza rad etildi");
       setRejectApp(null); setRejectReason(""); setDetail(null); fetchApplications();
     } catch (e) {
-      const err = e as AxiosError<{ error: string }>;
-      toast.error(err.response?.data?.error || "Xatolik");
+      toast.error((e as AxiosError<{ error: string }>).response?.data?.error || "Xatolik");
     } finally { setActionLoading(false); }
   };
 
@@ -132,8 +127,7 @@ export default function AdminApplications() {
       toast.success("Chat ochildi!");
       setChatApp(null); setChatMsg("");
     } catch (e) {
-      const err = e as AxiosError<{ error: string }>;
-      toast.error(err.response?.data?.error || "Xatolik");
+      toast.error((e as AxiosError<{ error: string }>).response?.data?.error || "Xatolik");
     } finally { setActionLoading(false); }
   };
 
@@ -142,16 +136,13 @@ export default function AdminApplications() {
       {/* Filters */}
       <div className="glass-card p-4 flex flex-wrap gap-3 items-center">
         <div className="flex gap-1 p-1 rounded-xl" style={{ backgroundColor: "var(--sidebar-hover)" }}>
-          {["PENDING","APPROVED","REJECTED"].map(s => {
-            const BadgeIcon = STATUS_BADGE_ICONS[s].icon;
-            return (
-              <button key={s} onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1 ${statusFilter === s ? "shadow-sm" : "hover:opacity-80"}`}
-                style={statusFilter === s ? { backgroundColor: "var(--card)", color: "var(--text)" } : { color: "var(--text-secondary)" }}>
-                <BadgeIcon size={12} /> {STATUS_BADGE_ICONS[s].label}
-              </button>
-            );
-          })}
+          {FILTER_TABS.map(tab => (
+            <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === tab.key ? "shadow-sm" : "hover:opacity-80"}`}
+              style={statusFilter === tab.key ? { backgroundColor: "var(--card)", color: "var(--text)" } : { color: "var(--text-secondary)" }}>
+              {tab.label}
+            </button>
+          ))}
         </div>
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
@@ -170,40 +161,76 @@ export default function AdminApplications() {
           <div className="py-16 text-center" style={{ color: "var(--muted)" }}>Arizalar yo&apos;q</div>
         ) : (
           <div className="divide-y" style={{ borderColor: "var(--border-strong)" }}>
-            {applications.map(a => (
-              <div key={a.id} className="p-4 transition-colors hover:bg-[var(--sidebar-hover)]">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 flex-shrink-0">
-                    {a.user.name?.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold" style={{ color: "var(--text)" }}>{a.user.name}</span>
-                      {a.user.username && <span className="text-indigo-600 text-sm">@{a.user.username}</span>}
-                      {a.user.walletId && <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: "var(--sidebar-hover)" }}>{a.user.walletId}</span>}
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 ${STATUS_COLORS[a.status]}`}><StatusBadge status={a.status} /></span>
+            {applications.map(a => {
+              const meta = STATUS_META[a.status];
+              const Icon = meta?.icon ?? Clock;
+              return (
+                <div key={a.id} className="p-4 transition-colors hover:bg-[var(--sidebar-hover)]">
+                  <div className="flex items-start gap-4">
+                    {/* Avatar */}
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 flex-shrink-0">
+                      {a.user.name?.charAt(0)}
                     </div>
-                    <div className="text-xs mt-0.5 flex gap-3" style={{ color: "var(--muted)" }}>
-                      <span>{new Date(a.createdAt).toLocaleDateString("uz-UZ")}</span>
-                      <span>{a.skillsCount} ta xizmat</span>
-                      <span>{a.districts?.slice(0,2).join(", ")}{a.districts?.length > 2 ? ` +${a.districts.length-2}` : ""}</span>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold" style={{ color: "var(--text)" }}>{a.user.name}</span>
+                        {a.user.username && <span className="text-indigo-600 text-sm">@{a.user.username}</span>}
+                        {a.user.walletId && (
+                          <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                            {a.user.walletId}
+                          </span>
+                        )}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 ${meta?.color}`}>
+                          <Icon size={11} /> {meta?.label}
+                        </span>
+                      </div>
+                      <div className="text-xs mt-0.5 flex gap-3 flex-wrap" style={{ color: "var(--muted)" }}>
+                        <span className="flex items-center gap-1"><Calendar size={11} /> {timeAgo(a.createdAt)}</span>
+                        <span className="flex items-center gap-1"><Wrench size={11} /> {a.skillsCount} ta xizmat</span>
+                        {a.districts?.length > 0 && (
+                          <span className="flex items-center gap-1">
+                            <MapPin size={11} /> {a.districts.slice(0,2).join(", ")}{a.districts.length > 2 ? ` +${a.districts.length-2}` : ""}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* APPROVED/REJECTED info */}
+                      {(a.status === "APPROVED" || a.status === "REJECTED") && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {a.reviewedAt && (
+                            <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                              Ko&apos;rib chiqildi: <span className="font-medium">{timeAgo(a.reviewedAt)}</span>
+                              {a.reviewedBy && <span className="ml-1 text-indigo-500">({a.reviewedBy.name})</span>}
+                            </div>
+                          )}
+                          {a.adminMessage && (
+                            <div className="text-xs italic" style={{ color: "var(--text-secondary)" }}>
+                              &quot;{a.adminMessage.slice(0, 80)}{a.adminMessage.length > 80 ? "..." : ""}&quot;
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <button onClick={() => openDetail(a.id)} title="Batafsil"
-                      className="p-2 rounded-lg hover:bg-indigo-50 text-indigo-600 transition-colors"><Eye size={16} /></button>
-                    {a.status === "PENDING" && <>
-                      <button onClick={() => { setApproveApp(a.id); setApproveMsg(""); }} title="Tasdiqlash"
-                        className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600 transition-colors"><Check size={16} /></button>
-                      <button onClick={() => { setChatApp(a.id); setChatMsg(""); }} title="Chat ochish"
-                        className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"><MessageSquare size={16} /></button>
-                      <button onClick={() => { setRejectApp(a.id); setRejectReason(""); }} title="Rad etish"
-                        className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"><X size={16} /></button>
-                    </>}
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button onClick={() => openDetail(a.id)} title="Batafsil"
+                        className="p-2 rounded-lg hover:bg-indigo-50 text-indigo-600 transition-colors"><Eye size={16} /></button>
+                      {a.status === "PENDING" && <>
+                        <button onClick={() => { setApproveApp(a.id); setApproveMsg(""); }} title="Tasdiqlash"
+                          className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600 transition-colors"><Check size={16} /></button>
+                        <button onClick={() => { setChatApp(a.id); setChatMsg(""); }} title="Chat"
+                          className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"><MessageSquare size={16} /></button>
+                        <button onClick={() => { setRejectApp(a.id); setRejectReason(""); }} title="Rad etish"
+                          className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"><X size={16} /></button>
+                      </>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -226,9 +253,8 @@ export default function AdminApplications() {
           <div className="w-full max-w-xl h-full overflow-y-auto shadow-2xl" style={{ backgroundColor: "var(--card)" }}>
             <div className="sticky top-0 px-6 py-4 flex items-center justify-between" style={{ backgroundColor: "var(--card)", borderBottom: "1px solid var(--border-strong)" }}>
               <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Ariza tafsilotlari</h2>
-              <button onClick={() => setDetail(null)} className="hover:opacity-80" style={{ color: "var(--muted)" }}><X size={20} /></button>
+              <button onClick={() => setDetail(null)} style={{ color: "var(--muted)" }}><X size={20} /></button>
             </div>
-
             {detailLoading ? (
               <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"/></div>
             ) : detail && (
@@ -239,7 +265,7 @@ export default function AdminApplications() {
                     <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-lg flex-shrink-0">
                       {detail.user.name?.charAt(0)}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <div className="font-bold" style={{ color: "var(--text)" }}>{detail.user.name}</div>
                       <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
                         <span className={`w-1.5 h-1.5 rounded-full ${detail.user.isOnline ? "bg-green-500" : "bg-gray-300"}`}/>
@@ -247,7 +273,7 @@ export default function AdminApplications() {
                         {detail.user.username && <span>· @{detail.user.username}</span>}
                       </div>
                     </div>
-                    <a href={`/users/${detail.user.id}`} target="_blank" className="ml-auto text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs">
+                    <a href={`/users/${detail.user.id}`} target="_blank" className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs">
                       Profil <ExternalLink size={11} />
                     </a>
                   </div>
@@ -255,9 +281,33 @@ export default function AdminApplications() {
                     {detail.user.walletId && <div><span style={{ color: "var(--text-secondary)" }}>ID:</span> <span className="font-mono">{detail.user.walletId}</span></div>}
                     {detail.user.email && <div><span style={{ color: "var(--text-secondary)" }}>Email:</span> {detail.user.email}</div>}
                     <div><span style={{ color: "var(--text-secondary)" }}>Ishonchlilik:</span> <span className="font-semibold text-emerald-600">{detail.user.reliability}%</span></div>
-                    <div><span style={{ color: "var(--text-secondary)" }}>Muvaffaqiyatli:</span> <span className="font-semibold">{detail.user.successfulOrders}</span></div>
                   </div>
                 </div>
+
+                {/* Admin review info (APPROVED/REJECTED) */}
+                {(detail.status === "APPROVED" || detail.status === "REJECTED") && (detail.reviewedBy || detail.adminMessage) && (
+                  <div className={`rounded-2xl p-4 space-y-2 ${detail.status === "APPROVED" ? "bg-emerald-500/5 border border-emerald-500/20" : "bg-red-500/5 border border-red-500/20"}`}>
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <ShieldCheck size={15} className={detail.status === "APPROVED" ? "text-emerald-500" : "text-red-500"} />
+                      <span style={{ color: "var(--text)" }}>Admin qarori</span>
+                    </div>
+                    {detail.reviewedBy && (
+                      <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                        Admin: <span className="font-semibold" style={{ color: "var(--text)" }}>{detail.reviewedBy.name}</span>
+                      </div>
+                    )}
+                    {detail.reviewedAt && (
+                      <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                        Sana: <span className="font-medium">{timeAgo(detail.reviewedAt)}</span>
+                      </div>
+                    )}
+                    {detail.adminMessage && (
+                      <div className="text-sm italic p-2 rounded-lg" style={{ color: "var(--text)", backgroundColor: "var(--card)" }}>
+                        &quot;{detail.adminMessage}&quot;
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Ariza */}
                 <div className="space-y-3">
@@ -299,7 +349,6 @@ export default function AdminApplications() {
                             <div className="font-semibold" style={{ color: "var(--text)" }}>{s.skill.name}</div>
                             <div className="text-xs" style={{ color: "var(--text-secondary)" }}>{s.skill.category.name}</div>
                           </div>
-                          <span className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--card)", border: "1px solid var(--border-strong)" }}><ServiceLabel serviceType={s.serviceType} /></span>
                         </div>
                         <div className="flex gap-4 text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
                           <span>Staj: <strong>{s.experienceYears} yil</strong></span>
@@ -312,7 +361,7 @@ export default function AdminApplications() {
                   </div>
                 </div>
 
-                {/* Actions */}
+                {/* Actions (only PENDING) */}
                 {detail.status === "PENDING" && (
                   <div className="flex gap-2 pt-2 sticky bottom-0 py-4" style={{ backgroundColor: "var(--card)", borderTop: "1px solid var(--border-strong)" }}>
                     <button onClick={() => { setApproveApp(detail.id); setApproveMsg(""); }}

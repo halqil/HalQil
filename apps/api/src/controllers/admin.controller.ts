@@ -4,29 +4,43 @@ import { prisma } from '../lib/prisma';
 // ------------------------ CATEGORY ------------------------
 
 /**
- * @desc    Kategoriyalarni olish
+ * @desc    Kategoriyalarni olish (status/search filter, counts)
  * @route   GET /api/admin/categories
  * @access  SUPER_ADMIN
  */
 export const getCategories = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { is_active } = req.query;
-    
-    let filter: any = {};
-    if (is_active !== undefined) {
-      filter.isActive = is_active === 'true';
-    }
+    const { status = 'all', search } = req.query as Record<string, string>;
+
+    const where: any = {};
+    if (status === 'active')   where.isActive = true;
+    if (status === 'inactive') where.isActive = false;
+    if (search) where.name = { contains: search, mode: 'insensitive' };
 
     const categories = await prisma.category.findMany({
-      where: filter,
+      where,
       include: {
-        skills: { orderBy: { createdAt: 'desc' } },
+        skills: {
+          orderBy: { createdAt: 'desc' },
+          include: { _count: { select: { providerSkills: true } } }
+        },
         _count: { select: { skills: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json({ success: true, data: categories });
+    // providersCount: distinct provayderlar soni (ProviderSkill orqali)
+    const enriched = await Promise.all(categories.map(async (cat) => {
+      const providersCount = await prisma.providerSkill.count({
+        where: { skill: { categoryId: cat.id } }
+      });
+      const ordersCount = await prisma.order.count({
+        where: { skill: { categoryId: cat.id } }
+      });
+      return { ...cat, providersCount, ordersCount };
+    }));
+
+    res.json({ success: true, data: enriched });
   } catch (error) {
     next(error);
   }
@@ -41,7 +55,9 @@ export const createCategory = async (req: Request, res: Response, next: NextFunc
   try {
     const { name, description, icon } = req.body;
 
-    const existing = await prisma.category.findUnique({ where: { name } });
+    const existing = await prisma.category.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } }
+    });
     if (existing) {
       return res.status(400).json({ success: false, error: 'Kategoriya nomi allaqachon mavjud', code: 'DUPLICATE_CATEGORY' });
     }
@@ -58,7 +74,7 @@ export const createCategory = async (req: Request, res: Response, next: NextFunc
 
 /**
  * @desc    Kategoriyani tahrirlash
- * @route   PUT /api/admin/categories/:id
+ * @route   PATCH /api/admin/categories/:id
  * @access  SUPER_ADMIN
  */
 export const updateCategory = async (req: Request, res: Response, next: NextFunction) => {
@@ -69,14 +85,20 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
     const category = await prisma.category.findUnique({ where: { id } });
     if (!category) return res.status(404).json({ success: false, error: 'Kategoriya topilmadi', code: 'NOT_FOUND' });
 
-    if (name && name !== category.name) {
-      const existing = await prisma.category.findUnique({ where: { name } });
+    if (name && name.toLowerCase() !== category.name.toLowerCase()) {
+      const existing = await prisma.category.findFirst({
+        where: { name: { equals: name, mode: 'insensitive' }, id: { not: id } }
+      });
       if (existing) return res.status(400).json({ success: false, error: 'Kategoriya nomi allaqachon mavjud', code: 'DUPLICATE_CATEGORY' });
     }
 
     const updated = await prisma.category.update({
       where: { id },
-      data: { name, description, icon }
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+        ...(icon !== undefined && { icon }),
+      }
     });
 
     res.json({ success: true, data: updated });
@@ -86,7 +108,7 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
 };
 
 /**
- * @desc    Kategoriya holatini o'zgartirish (Faol/Nofaol)
+ * @desc    Kategoriya holatini toggle (isActive) — skilllar ham birga o'zgaradi
  * @route   PATCH /api/admin/categories/:id/toggle
  * @access  SUPER_ADMIN
  */
@@ -97,24 +119,148 @@ export const toggleCategory = async (req: Request, res: Response, next: NextFunc
     const category = await prisma.category.findUnique({ where: { id } });
     if (!category) return res.status(404).json({ success: false, error: 'Kategoriya topilmadi', code: 'NOT_FOUND' });
 
+    const newActive = !category.isActive;
+
     const updated = await prisma.category.update({
       where: { id },
-      data: { isActive: !category.isActive }
+      data: { isActive: newActive }
     });
 
-    // If deactivated, also deactivate its skills
-    if (!updated.isActive) {
-      await prisma.skill.updateMany({
-        where: { categoryId: id },
-        data: { isActive: false }
-      });
-    }
+    // Barcha skilllarni ham bir xil holat qil
+    await prisma.skill.updateMany({
+      where: { categoryId: id },
+      data: { isActive: newActive }
+    });
 
     res.json({ success: true, data: updated });
   } catch (error) {
     next(error);
   }
 };
+
+/**
+ * @desc    Kategoriya provayderlarini olish
+ * @route   GET /api/admin/categories/:id/providers
+ * @access  SUPER_ADMIN
+ */
+export const getCategoryProviders = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { page = '1', limit = '20' } = req.query as Record<string, string>;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [providerSkills, total] = await Promise.all([
+      prisma.providerSkill.findMany({
+        where: { skill: { categoryId: id } },
+        include: {
+          provider: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, username: true, avatar: true, isOnline: true } },
+              _count: { select: { orders: true } }
+            }
+          }
+        },
+        skip,
+        take: limitNum,
+        orderBy: { provider: { user: { createdAt: 'desc' } } }
+      }),
+      prisma.providerSkill.count({ where: { skill: { categoryId: id } } })
+    ]);
+
+    // Deduplicate by providerId + avgRating
+    const seen = new Set<string>();
+    const providers = [];
+    for (const ps of providerSkills) {
+      if (seen.has(ps.provider.id)) continue;
+      seen.add(ps.provider.id);
+
+      const reviews = await prisma.review.aggregate({
+        where: { reviewee: { providerProfile: { id: ps.provider.id } } },
+        _avg: { rating: true }
+      });
+
+      providers.push({
+        id: ps.provider.id,
+        user: ps.provider.user,
+        reliability: 0,
+        avgRating: reviews._avg.rating ?? 0,
+        ordersCount: ps.provider._count.orders,
+        experienceYears: ps.experienceYears,
+        priceFrom: ps.priceFrom,
+        priceTo: ps.priceTo,
+      });
+    }
+
+    res.json({ success: true, data: { providers, total, page: pageNum, totalPages: Math.ceil(total / limitNum) } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Kategoriya o'chirishni tekshirish
+ * @route   GET /api/admin/categories/:id/check-delete
+ * @access  SUPER_ADMIN
+ */
+export const checkCategoryDelete = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const providersCount = await prisma.providerSkill.count({
+      where: { skill: { categoryId: id }, provider: { status: 'APPROVED' } }
+    });
+
+    res.json({ success: true, data: { canDelete: providersCount === 0, providersCount } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Kategoriyani o'chirish (cascade)
+ * @route   DELETE /api/admin/categories/:id
+ * @access  SUPER_ADMIN
+ */
+export const deleteCategory = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const category = await prisma.category.findUnique({ where: { id }, include: { _count: { select: { skills: true } } } });
+    if (!category) return res.status(404).json({ success: false, error: 'Kategoriya topilmadi', code: 'NOT_FOUND' });
+
+    const providersCount = await prisma.providerSkill.count({
+      where: { skill: { categoryId: id }, provider: { status: 'APPROVED' } }
+    });
+
+    if (providersCount > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Bu kategoriyada ${providersCount} ta aktiv provayder bor. Avval ularni boshqa kategoriyaga ko'chiring.`,
+        code: 'HAS_ACTIVE_PROVIDERS',
+        providersCount
+      });
+    }
+
+    // Cascade delete
+    const skillIds = (await prisma.skill.findMany({ where: { categoryId: id }, select: { id: true } })).map(s => s.id);
+
+    if (skillIds.length > 0) {
+      await prisma.providerApplicationSkill.deleteMany({ where: { skillId: { in: skillIds } } });
+      await prisma.providerSkill.deleteMany({ where: { skillId: { in: skillIds } } });
+      await prisma.skill.deleteMany({ where: { categoryId: id } });
+    }
+
+    await prisma.category.delete({ where: { id } });
+
+    res.json({ success: true, data: { message: 'Kategoriya o\'chirildi' } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 
 // ------------------------ SKILL ------------------------
 
@@ -168,7 +314,7 @@ export const createSkill = async (req: Request, res: Response, next: NextFunctio
 
 /**
  * @desc    Ko'nikmani tahrirlash
- * @route   PUT /api/admin/skills/:id
+ * @route   PATCH /api/admin/skills/:id
  * @access  SUPER_ADMIN
  */
 export const updateSkill = async (req: Request, res: Response, next: NextFunction) => {
@@ -179,9 +325,19 @@ export const updateSkill = async (req: Request, res: Response, next: NextFunctio
     const skill = await prisma.skill.findUnique({ where: { id } });
     if (!skill) return res.status(404).json({ success: false, error: 'Skill topilmadi', code: 'NOT_FOUND' });
 
+    if (name && name.toLowerCase() !== skill.name.toLowerCase()) {
+      const existing = await prisma.skill.findFirst({
+        where: { name: { equals: name, mode: 'insensitive' }, categoryId: skill.categoryId, id: { not: id } }
+      });
+      if (existing) return res.status(400).json({ success: false, error: 'Bu kategoriyada bunday nomli skill mavjud', code: 'DUPLICATE_SKILL' });
+    }
+
     const updated = await prisma.skill.update({
       where: { id },
-      data: { name, description }
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+      }
     });
 
     res.json({ success: true, data: updated });
@@ -191,7 +347,7 @@ export const updateSkill = async (req: Request, res: Response, next: NextFunctio
 };
 
 /**
- * @desc    Ko'nikma holatini o'zgartirish (Faol/Nofaol)
+ * @desc    Ko'nikma holatini o'zgartirish (Faol/Nofaol) — kategoriyadan mustaqil
  * @route   PATCH /api/admin/skills/:id/toggle
  * @access  SUPER_ADMIN
  */
@@ -217,7 +373,107 @@ export const toggleSkill = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-// ------------------------ APPLICATIONS ------------------------
+/**
+ * @desc    Skill provayderlarini olish
+ * @route   GET /api/admin/skills/:id/providers
+ * @access  SUPER_ADMIN
+ */
+export const getSkillProviders = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { page = '1', limit = '20' } = req.query as Record<string, string>;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [providerSkills, total] = await Promise.all([
+      prisma.providerSkill.findMany({
+        where: { skillId: id },
+        include: {
+          provider: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, username: true, avatar: true, isOnline: true } },
+              _count: { select: { orders: true } }
+            }
+          }
+        },
+        skip,
+        take: limitNum,
+        orderBy: { provider: { user: { createdAt: 'desc' } } }
+      }),
+      prisma.providerSkill.count({ where: { skillId: id } })
+    ]);
+
+    const providers = providerSkills.map(ps => ({
+      id: ps.provider.id,
+      user: ps.provider.user,
+      ordersCount: ps.provider._count.orders,
+      experienceYears: ps.experienceYears,
+      priceFrom: ps.priceFrom,
+      priceTo: ps.priceTo,
+    }));
+
+    res.json({ success: true, data: { providers, total, page: pageNum, totalPages: Math.ceil(total / limitNum) } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Skill o'chirishni tekshirish
+ * @route   GET /api/admin/skills/:id/check-delete
+ * @access  SUPER_ADMIN
+ */
+export const checkSkillDelete = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const providersCount = await prisma.providerSkill.count({
+      where: { skillId: id, provider: { status: 'APPROVED' } }
+    });
+
+    res.json({ success: true, data: { canDelete: providersCount === 0, providersCount } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Skillni o'chirish (cascade)
+ * @route   DELETE /api/admin/skills/:id
+ * @access  SUPER_ADMIN
+ */
+export const deleteSkill = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const skill = await prisma.skill.findUnique({ where: { id } });
+    if (!skill) return res.status(404).json({ success: false, error: 'Skill topilmadi', code: 'NOT_FOUND' });
+
+    const providersCount = await prisma.providerSkill.count({
+      where: { skillId: id, provider: { status: 'APPROVED' } }
+    });
+
+    if (providersCount > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Bu skillda ${providersCount} ta aktiv provayder bor. Avval ularni boshqa skillga ko'chiring.`,
+        code: 'HAS_ACTIVE_PROVIDERS',
+        providersCount
+      });
+    }
+
+    await prisma.providerApplicationSkill.deleteMany({ where: { skillId: id } });
+    await prisma.providerSkill.deleteMany({ where: { skillId: id } });
+    await prisma.skill.delete({ where: { id } });
+
+    res.json({ success: true, data: { message: 'Skill o\'chirildi' } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 
 /**
  * @desc    Provayder arizalarini olish
@@ -227,7 +483,7 @@ export const toggleSkill = async (req: Request, res: Response, next: NextFunctio
 export const getApplications = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
-      status = 'PENDING',
+      status,
       search,
       page = '1',
       limit = '20'
@@ -243,10 +499,15 @@ export const getApplications = async (req: Request, res: Response, next: NextFun
         { name: { contains: search, mode: 'insensitive' } },
         { username: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    const where: any = { status };
+    // status filter: agar ko'rsatilmasa yoki 'ALL' bo'lsa — hammasi
+    const where: any = {};
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
     if (search) where.user = userWhere;
 
     const [applications, total] = await Promise.all([
@@ -259,6 +520,9 @@ export const getApplications = async (req: Request, res: Response, next: NextFun
               name: true, email: true, avatar: true, walletId: true,
               isOnline: true, createdAt: true, reliability: true
             }
+          },
+          reviewer: {
+            select: { id: true, firstName: true, lastName: true, name: true }
           },
           _count: { select: { skills: true } }
         },
@@ -275,7 +539,10 @@ export const getApplications = async (req: Request, res: Response, next: NextFun
       createdAt: a.createdAt,
       user: a.user,
       skillsCount: a._count.skills,
-      districts: a.workDistricts
+      districts: a.workDistricts,
+      reviewedBy: a.reviewer ? { id: a.reviewer.id, name: a.reviewer.name, firstName: a.reviewer.firstName, lastName: a.reviewer.lastName } : null,
+      reviewedAt: a.reviewedAt,
+      adminMessage: a.adminMessage,
     }));
 
     res.json({ success: true, data: { applications: data, total, page: pageNum, totalPages: Math.ceil(total / limitNum) } });
@@ -283,6 +550,7 @@ export const getApplications = async (req: Request, res: Response, next: NextFun
     next(error);
   }
 };
+
 
 /**
  * @desc    Bitta ariza batafsil
@@ -303,6 +571,9 @@ export const getApplicationDetail = async (req: Request, res: Response, next: Ne
             successfulOrders: true, cancelledOrders: true
           }
         },
+        reviewer: {
+          select: { id: true, name: true, firstName: true, lastName: true }
+        },
         skills: {
           include: {
             skill: { include: { category: { select: { id: true, name: true } } } }
@@ -318,6 +589,7 @@ export const getApplicationDetail = async (req: Request, res: Response, next: Ne
     next(error);
   }
 };
+
 
 /**
  * @desc    Arizani tasdiqlash
@@ -341,7 +613,15 @@ export const approveApplication = async (req: Request, res: Response, next: Next
 
     await prisma.$transaction(async (tx) => {
       // 1. Ariza statusini yangilash
-      await tx.providerApplication.update({ where: { id }, data: { status: 'APPROVED' } });
+      await tx.providerApplication.update({
+        where: { id },
+        data: {
+          status: 'APPROVED',
+          reviewedBy: adminId,
+          reviewedAt: new Date(),
+          adminMessage: message.trim()
+        }
+      });
 
       // 2. User rolini PROVIDER qilish
       await tx.user.update({ where: { id: application.userId }, data: { role: 'PROVIDER' } });
@@ -439,7 +719,13 @@ export const rejectApplication = async (req: Request, res: Response, next: NextF
 
     await prisma.providerApplication.update({
       where: { id },
-      data: { status: 'REJECTED', rejectionNote: reason.trim() }
+      data: {
+        status: 'REJECTED',
+        rejectionNote: reason.trim(),
+        reviewedBy: req.user?.userId,
+        reviewedAt: new Date(),
+        adminMessage: reason.trim()
+      }
     });
 
     await prisma.notification.create({

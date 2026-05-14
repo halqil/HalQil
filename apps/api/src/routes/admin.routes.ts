@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import {
   getCategories, createCategory, updateCategory, toggleCategory,
+  getCategoryProviders, checkCategoryDelete, deleteCategory,
   getSkills, createSkill, updateSkill, toggleSkill,
+  getSkillProviders, checkSkillDelete, deleteSkill,
   getApplications, getApplicationDetail, approveApplication, rejectApplication, openApplicationChat,
   getOrgApplications, approveOrgApplication, rejectOrgApplication,
   getAdminOrganizations, updateOrganization, toggleOrganization,
@@ -11,7 +13,7 @@ import {
 } from '../controllers/admin.controller';
 import { resolveDispute } from '../controllers/order.controller';
 import { validate } from '../middlewares/validate';
-import { createCategorySchema, updateCategorySchema, createSkillSchema, updateSkillSchema } from '../schemas/admin.schema';
+import { createCategorySchema, createSkillSchema } from '../schemas/admin.schema';
 import { authenticate, authorize } from '../middlewares/auth';
 
 const router = Router();
@@ -21,14 +23,21 @@ router.use(authenticate, authorize('SUPER_ADMIN'));
 // Categories
 router.get('/categories', getCategories);
 router.post('/categories', validate(createCategorySchema), createCategory);
-router.patch('/categories/:id', validate(updateCategorySchema), updateCategory);
+router.patch('/categories/:id', updateCategory);
 router.patch('/categories/:id/toggle', toggleCategory);
+router.get('/categories/:id/providers', getCategoryProviders);
+router.get('/categories/:id/check-delete', checkCategoryDelete);
+router.delete('/categories/:id', deleteCategory);
 
 // Skills
 router.get('/skills', getSkills);
 router.post('/skills', validate(createSkillSchema), createSkill);
-router.patch('/skills/:id', validate(updateSkillSchema), updateSkill);
+router.patch('/skills/:id', updateSkill);
 router.patch('/skills/:id/toggle', toggleSkill);
+router.get('/skills/:id/providers', getSkillProviders);
+router.get('/skills/:id/check-delete', checkSkillDelete);
+router.delete('/skills/:id', deleteSkill);
+
 
 // Provider Applications
 router.get('/applications', getApplications);
@@ -68,16 +77,48 @@ router.post('/notifications/send', sendNotificationToUser);
 router.get('/orders/disputed', async (req, res, next) => {
   try {
     const { prisma } = await import('../lib/prisma');
-    const orders = await prisma.order.findMany({
-      where: { status: 'DISPUTED' },
-      include: {
-        user: { select: { id: true, name: true, avatar: true } },
-        provider: { include: { user: { select: { id: true, name: true, avatar: true } } } },
-        skill: true
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
-    res.json({ success: true, data: orders });
+    const { status, page = '1', limit = '20' } = req.query as Record<string, string>;
+
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    let where: any = {};
+    if (!status || status === 'ALL') {
+      // Hammasi: DISPUTED va hal qilinganlar (resolvedBy bor)
+      where = {
+        OR: [
+          { status: 'DISPUTED' },
+          { resolvedBy: { not: null } }
+        ]
+      };
+    } else if (status === 'DISPUTED') {
+      where = { status: 'DISPUTED' };
+    } else if (status === 'RESOLVED') {
+      // RESOLVED = resolvedBy mavjud bo'lgan COMPLETED yoki FAILED
+      where = {
+        resolvedBy: { not: null },
+        status: { in: ['COMPLETED', 'FAILED'] }
+      };
+    }
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        include: {
+          user: { select: { id: true, name: true, avatar: true } },
+          provider: { include: { user: { select: { id: true, name: true, avatar: true } } } },
+          skill: true,
+          resolver: { select: { id: true, name: true, firstName: true, lastName: true } }
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: limitNum
+      }),
+      prisma.order.count({ where })
+    ]);
+
+    res.json({ success: true, data: { orders, total, page: pageNum, totalPages: Math.ceil(total / limitNum) } });
   } catch (error) { next(error); }
 });
 router.patch('/orders/:id/resolve', resolveDispute);
