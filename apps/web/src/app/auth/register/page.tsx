@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import {
@@ -31,7 +30,6 @@ function formatPhone(value: string): string {
 }
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -122,7 +120,7 @@ export default function RegisterPage() {
       localStorage.setItem('accessToken', res.data.data.accessToken);
       localStorage.setItem('refreshToken', res.data.data.refreshToken);
       localStorage.setItem('user', JSON.stringify(res.data.data.user));
-      router.push('/');
+      window.location.href = '/home';
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Xatolik yuz berdi';
       setErrors({ general: msg });

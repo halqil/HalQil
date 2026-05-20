@@ -5,7 +5,7 @@ import { useAuthStore } from "../lib/store";
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, Search, Package, Briefcase, Bell,
-  Settings, LogOut, User, Sun, Moon, Monitor, MessageCircle
+  Settings, LogOut, User, Sun, Moon, Monitor, MessageCircle, Home
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import api from "../lib/api";
@@ -137,7 +137,7 @@ export default function Navbar() {
       <div className="flex items-center gap-3">
         {/* Search */}
         <Link
-          href="/providers"
+          href="/search"
           className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--sidebar-hover)] transition-all"
         >
           <Search size={20} />
@@ -155,7 +155,23 @@ export default function Navbar() {
 
         {isAuthenticated ? (
           <div className="flex items-center gap-2">
-            {/* Notifications */}
+            {/* Home */}
+            <Link
+              href="/home"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--sidebar-hover)] transition-all"
+            >
+              <Home size={20} />
+              <span className="hidden md:inline font-medium text-sm">Bosh sahifa</span>
+            </Link>
+
+            {/* Search */}
+            <Link
+              href="/search"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--sidebar-hover)] transition-all"
+            >
+              <Search size={20} />
+              <span className="hidden md:inline font-medium text-sm">Qidiruv</span>
+            </Link>
             <Link
               href="/notifications"
               className="relative p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--sidebar-hover)] transition-all"

@@ -38,11 +38,17 @@ export const getProviders = async (req: Request, res: Response, next: NextFuncti
       };
     }
 
-    let orderBy: any = {};
-    if (sort === 'rating') {
-       orderBy = { user: { reliability: 'desc' } }; // Simplified, could order by computed rating
-    } else {
-       orderBy = { user: { reliability: 'desc' } };
+    let orderBy: any = { user: { reliability: 'desc' } }
+    if (sort === 'completed_orders') {
+      orderBy = [
+        { successfulOrders: 'desc' }
+      ]
+    } else if (sort === 'skills_count') {
+      orderBy = [
+        { providerSkills: { _count: 'desc' } }
+      ]
+    } else if (sort === 'reliability') {
+      orderBy = { user: { reliability: 'desc' } }
     }
 
     const providers = await prisma.providerProfile.findMany({

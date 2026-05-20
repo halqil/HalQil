@@ -33,18 +33,38 @@ export const sendNotification = async (
  */
 export const getOrganizations = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { categoryId, sortBy } = req.query
+
+    const where: any = { isActive: true }
+
+    if (categoryId) {
+      where.skills = {
+        some: {
+          skill: { categoryId: categoryId as string }
+        }
+      }
+    }
+
+    let orderBy: any = { rating: 'desc' }
+    if (sortBy === 'reliability') orderBy = { reliability: 'desc' }
+    else if (sortBy === 'members') orderBy = { members: { _count: 'desc' } }
+    else if (sortBy === 'rating') orderBy = { rating: 'desc' }
+
     const orgs = await prisma.organization.findMany({
-      where: { isActive: true },
+      where,
       include: {
         skills: { include: { skill: true } },
         _count: { select: { members: true, orders: true } },
-        adminProvider: { include: { user: { select: { name: true, avatar: true } } } }
+        adminProvider: {
+          include: { user: { select: { name: true, avatar: true } } }
+        }
       },
-      orderBy: { rating: 'desc' }
-    });
-    res.json({ success: true, data: orgs });
+      orderBy
+    })
+
+    res.json({ success: true, data: orgs })
   } catch (error) {
-    next(error);
+    next(error)
   }
 };
 

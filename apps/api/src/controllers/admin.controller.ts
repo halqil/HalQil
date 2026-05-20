@@ -37,7 +37,10 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
       const ordersCount = await prisma.order.count({
         where: { skill: { categoryId: cat.id } }
       });
-      return { ...cat, providersCount, ordersCount };
+      const organizationsCount = await prisma.organizationSkill.count({
+        where: { skill: { categoryId: cat.id } }
+      })
+      return { ...cat, providersCount, ordersCount, organizationsCount }
     }));
 
     res.json({ success: true, data: enriched });
@@ -279,7 +282,10 @@ export const getSkills = async (req: Request, res: Response, next: NextFunction)
 
     const skills = await prisma.skill.findMany({
       where: filter,
-      include: { category: true },
+      include: {
+        category: true,
+        _count: { select: { providerSkills: true } }
+      },
       orderBy: { createdAt: 'desc' }
     });
 

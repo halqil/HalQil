@@ -1,12 +1,10 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { Eye, EyeOff, Phone, Mail, User, Zap, Loader2, X, CheckCircle, LifeBuoy, Send } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -52,9 +50,9 @@ export default function LoginPage() {
       localStorage.setItem('user', JSON.stringify(user));
 
       const role = user.role;
-      if (role === 'SUPER_ADMIN') router.push('/admin');
-      else if (role === 'PROVIDER') router.push('/provider/dashboard');
-      else router.push('/');
+      if (role === 'SUPER_ADMIN') window.location.href = '/admin';
+      else if (role === 'PROVIDER') window.location.href = '/provider/dashboard';
+      else window.location.href = '/home';
     } catch (err: unknown) {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || "Login yoki parol noto'g'ri");
     } finally { setLoading(false); }
