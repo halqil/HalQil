@@ -656,6 +656,7 @@ export const approveApplication = async (req: Request, res: Response, next: Next
             experienceYears: s.experienceYears,
             priceFrom: s.priceFrom,
             priceTo: s.priceTo,
+            description: s.description,
             isActive: true
           }))
         });

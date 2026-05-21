@@ -147,6 +147,7 @@ model Category {
   createdAt   DateTime @default(now())
 
   skills Skill[]
+  providerApplications ProviderApplication[]
 }
 
 model Skill {
@@ -208,6 +209,7 @@ model ProviderSkill {
   priceNote       String?
   experienceYears Float           @default(0)
   isActive        Boolean         @default(true)
+  description     String?
 }
 
 model ProviderDistrict {
@@ -438,6 +440,9 @@ model ProviderApplication {
 
   skills          ProviderApplicationSkill[]
   providerProfile ProviderProfile[]
+
+  categoryId     String?
+  category       Category? @relation(fields: [categoryId], references: [id])
 }
 
 model ProviderApplicationSkill {

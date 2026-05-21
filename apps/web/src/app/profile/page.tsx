@@ -289,9 +289,14 @@ export default function Profile() {
             <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--text)" }}>
               <Briefcase size={22} className="text-emerald-500" /> Provayder profili
             </h2>
-            <span className="glass-badge bg-emerald-500/10 text-emerald-500">
-              <CheckCircle size={12} /> Tasdiqlangan
-            </span>
+            <div className="flex items-center gap-2.5">
+              <Link href="/profile/skills" className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-full text-xs font-bold transition-colors border border-blue-500/20">
+                <Edit3 size={12} /> Skill boshqaruvi
+              </Link>
+              <span className="glass-badge bg-emerald-500/10 text-emerald-500">
+                <CheckCircle size={12} /> Tasdiqlangan
+              </span>
+            </div>
           </div>
 
           {providerProfile.bio && (

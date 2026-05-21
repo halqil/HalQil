@@ -13,7 +13,7 @@ export const applyForProvider = async (req: Request, res: Response, next: NextFu
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const { aboutMe, whyJoin, portfolioLink, workDistricts, dailyLimit, skills } = req.body;
+    const { aboutMe, whyJoin, portfolioLink, workDistricts, dailyLimit, categoryId, skills } = req.body;
 
     // ─── Validatsiya ──────────────────────────────────────────────────────────
     if (!aboutMe || aboutMe.trim().length < 50) {
@@ -25,9 +25,15 @@ export const applyForProvider = async (req: Request, res: Response, next: NextFu
     if (!workDistricts || !Array.isArray(workDistricts) || workDistricts.length === 0) {
       return res.status(400).json({ success: false, error: 'Kamida 1 ta tuman tanlash kerak' });
     }
-    if (!skills || !Array.isArray(skills) || skills.length === 0) {
-      return res.status(400).json({ success: false, error: 'Kamida 1 ta xizmat qo\'shish kerak' });
+    if (!categoryId) {
+      return res.status(400).json({ success: false, error: 'Kategoriya tanlash majburiy' });
     }
+
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category || !category.isActive) {
+      return res.status(400).json({ success: false, error: 'Kategoriya topilmadi yoki nofaol' });
+    }
+
     if (dailyLimit !== undefined && dailyLimit !== null) {
       const dl = Number(dailyLimit);
       if (isNaN(dl) || dl < 1 || dl > 50) {
@@ -52,29 +58,31 @@ export const applyForProvider = async (req: Request, res: Response, next: NextFu
     }
 
     // ─── Skilllarni validatsiya qilish ────────────────────────────────────────
-    for (const s of skills) {
-      if (!s.skillId) return res.status(400).json({ success: false, error: 'Har bir xizmat uchun skillId majburiy' });
-      if (!s.description || s.description.trim().length < 20) {
-        return res.status(400).json({ success: false, error: `Skill tavsifi kamida 20 belgi bo'lishi kerak` });
-      }
-      if (!['ORGANIZED', 'UNORGANIZED', 'BOTH'].includes(s.serviceType)) {
-        return res.status(400).json({ success: false, error: 'serviceType: ORGANIZED | UNORGANIZED | BOTH' });
-      }
-      const expYears = Number(s.experienceYears);
-      if (isNaN(expYears) || expYears < 0.5 || expYears > 50) {
-        return res.status(400).json({ success: false, error: 'experienceYears 0.5 dan 50 gacha bo\'lishi kerak' });
-      }
-      if (s.priceFrom !== undefined && s.priceTo !== undefined &&
-          s.priceFrom !== null && s.priceTo !== null) {
-        if (Number(s.priceTo) <= Number(s.priceFrom)) {
-          return res.status(400).json({ success: false, error: 'priceTo priceFrom dan katta bo\'lishi kerak' });
+    if (skills && Array.isArray(skills) && skills.length > 0) {
+      for (const s of skills) {
+        if (!s.skillId) return res.status(400).json({ success: false, error: 'Har bir xizmat uchun skillId majburiy' });
+        if (!s.description || s.description.trim().length < 20) {
+          return res.status(400).json({ success: false, error: `Skill tavsifi kamida 20 belgi bo'lishi kerak` });
         }
-      }
+        if (!['ORGANIZED', 'UNORGANIZED', 'BOTH'].includes(s.serviceType)) {
+          return res.status(400).json({ success: false, error: 'serviceType: ORGANIZED | UNORGANIZED | BOTH' });
+        }
+        const expYears = Number(s.experienceYears);
+        if (isNaN(expYears) || expYears < 0.5 || expYears > 50) {
+          return res.status(400).json({ success: false, error: 'experienceYears 0.5 dan 50 gacha bo\'lishi kerak' });
+        }
+        if (s.priceFrom !== undefined && s.priceTo !== undefined &&
+            s.priceFrom !== null && s.priceTo !== null) {
+          if (Number(s.priceTo) <= Number(s.priceFrom)) {
+            return res.status(400).json({ success: false, error: 'priceTo priceFrom dan katta bo\'lishi kerak' });
+          }
+        }
 
-      // Skill mavjud va active bo'lishi kerak
-      const skill = await prisma.skill.findUnique({ where: { id: s.skillId } });
-      if (!skill || !skill.isActive) {
-        return res.status(400).json({ success: false, error: `Skill topilmadi yoki nofaol: ${s.skillId}` });
+        // Skill mavjud va active bo'lishi kerak
+        const skill = await prisma.skill.findUnique({ where: { id: s.skillId } });
+        if (!skill || !skill.isActive) {
+          return res.status(400).json({ success: false, error: `Skill topilmadi yoki nofaol: ${s.skillId}` });
+        }
       }
     }
 
@@ -95,7 +103,8 @@ export const applyForProvider = async (req: Request, res: Response, next: NextFu
           workDistricts,
           dailyLimit: dailyLimit ? Number(dailyLimit) : null,
           status: 'PENDING',
-          skills: {
+          categoryId,
+          skills: skills && Array.isArray(skills) && skills.length > 0 ? {
             create: skills.map((s: any) => ({
               skillId: s.skillId,
               serviceType: s.serviceType,
@@ -105,7 +114,7 @@ export const applyForProvider = async (req: Request, res: Response, next: NextFu
               description: s.description.trim(),
               portfolioImages: s.portfolioImages || []
             }))
-          }
+          } : undefined
         }
       });
       return app;
@@ -345,26 +354,118 @@ export const updateSchedule = async (req: Request, res: Response, next: NextFunc
 export const addSkill = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.userId;
-    const { skill_id, price_from, price_to, price_note, experience_years } = req.body;
+    const { skill_id, price_from, price_to, price_note, experience_years, description } = req.body;
 
     const profile = await prisma.providerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ success: false, error: 'Profil topilmadi', code: 'NOT_FOUND' });
 
-    const existingSkill = await prisma.providerSkill.findFirst({ where: { providerId: profile.id, skillId: skill_id } });
-    if (existingSkill) return res.status(400).json({ success: false, error: 'Bu skill allaqachon qo\'shilgan', code: 'SKILL_EXISTS' });
-
-    const skill = await prisma.providerSkill.create({
-      data: {
-        providerId: profile.id,
-        skillId: skill_id,
-        priceFrom: price_from,
-        priceTo: price_to,
-        priceNote: price_note,
-        experienceYears: experience_years ?? 0,
+    // ─── Kategoriya tekshiruvi ──────────────────────────────────────────────
+    // 1. Provayderning APPROVED statusdagi BARCHA arizalarining categoryId larini ol
+    const approvedApplications = await prisma.providerApplication.findMany({
+      where: {
+        userId,
+        status: 'APPROVED',
+        categoryId: { not: null }
+      },
+      select: {
+        categoryId: true
       }
     });
 
-    res.status(201).json({ success: true, data: skill });
+    const approvedCategoryIds = approvedApplications
+      .map(app => app.categoryId)
+      .filter((id): id is string => !!id);
+
+    if (approvedCategoryIds.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Sizda hech qanday tasdiqlangan kategoriya mavjud emas',
+        code: 'NO_APPROVED_CATEGORIES'
+      });
+    }
+
+    // 2. Qo'shilayotgan skill shu kategoriyalardan biriga tegishli ekanini tekshir
+    const skill = await prisma.skill.findUnique({
+      where: { id: skill_id },
+      select: { categoryId: true, isActive: true }
+    });
+
+    if (!skill || !skill.isActive) {
+      return res.status(400).json({ success: false, error: 'Skill topilmadi yoki nofaol', code: 'SKILL_NOT_FOUND' });
+    }
+
+    // Qo'shilayotgan skill shu kategoriyalardan biriga tegishli bo'lsa — ruxsat ber, aks holda xatolik qaytarsin
+    if (!approvedCategoryIds.includes(skill.categoryId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Ushbu skill sizning tasdiqlangan kategoriyalaringizga tegishli emas',
+        code: 'CATEGORY_NOT_APPROVED'
+      });
+    }
+
+    const existingSkill = await prisma.providerSkill.findFirst({ where: { providerId: profile.id, skillId: skill_id } });
+    if (existingSkill) return res.status(400).json({ success: false, error: 'Bu skill allaqachon qo\'shilgan', code: 'SKILL_EXISTS' });
+
+    const providerSkill = await prisma.providerSkill.create({
+      data: {
+        providerId: profile.id,
+        skillId: skill_id,
+        priceFrom: price_from ? Number(price_from) : null,
+        priceTo: price_to ? Number(price_to) : null,
+        priceNote: price_note || null,
+        experienceYears: experience_years ? Number(experience_years) : 0,
+        description: description || null
+      }
+    });
+
+    res.status(201).json({ success: true, data: providerSkill });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Update Skill ─────────────────────────────────────────────────────────────
+/**
+ * @desc    Profil ko'nikmasini yangilash
+ * @route   PATCH /api/providers/me/skills/:skillId
+ * @access  Private (PROVIDER)
+ */
+export const updateSkill = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    const { skillId } = req.params;
+    const { price_from, price_to, price_note, experience_years, description, isActive } = req.body;
+
+    const profile = await prisma.providerProfile.findUnique({ where: { userId } });
+    if (!profile) return res.status(404).json({ success: false, error: 'Profil topilmadi', code: 'NOT_FOUND' });
+
+    const providerSkill = await prisma.providerSkill.findFirst({
+      where: { providerId: profile.id, skillId }
+    });
+    if (!providerSkill) {
+      return res.status(404).json({ success: false, error: 'Xizmat topilmadi', code: 'SKILL_NOT_FOUND' });
+    }
+
+    // Validatsiya
+    if (price_from !== undefined && price_to !== undefined && price_from !== null && price_to !== null) {
+      if (Number(price_to) <= Number(price_from)) {
+        return res.status(400).json({ success: false, error: 'priceTo priceFrom dan katta bo\'lishi kerak' });
+      }
+    }
+
+    const updated = await prisma.providerSkill.update({
+      where: { id: providerSkill.id },
+      data: {
+        priceFrom: price_from !== undefined ? (price_from ? Number(price_from) : null) : undefined,
+        priceTo: price_to !== undefined ? (price_to ? Number(price_to) : null) : undefined,
+        priceNote: price_note !== undefined ? price_note : undefined,
+        experienceYears: experience_years !== undefined ? (experience_years ? Number(experience_years) : 0) : undefined,
+        description: description !== undefined ? description : undefined,
+        isActive: isActive !== undefined ? isActive : undefined
+      }
+    });
+
+    res.json({ success: true, data: updated });
   } catch (error) {
     next(error);
   }

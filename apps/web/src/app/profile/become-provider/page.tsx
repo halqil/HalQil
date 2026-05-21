@@ -39,21 +39,9 @@ export default function BecomeProviderPage() {
   const [dailyLimit, setDailyLimit] = useState("");
 
   // Step 3
-  const [skills, setSkills] = useState<SkillItem[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
-  const [showSkillModal, setShowSkillModal] = useState(false);
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [showSummary, setShowSummary] = useState(false);
-
-  // Skill modal state
-  const [selCat, setSelCat] = useState("");
-  const [selSkill, setSelSkill] = useState("");
-  const [selSkillName, setSelSkillName] = useState("");
-  const [serviceType, setServiceType] = useState<"ORGANIZED"|"UNORGANIZED"|"BOTH">("UNORGANIZED");
-  const [expYears, setExpYears] = useState("1");
-  const [priceFrom, setPriceFrom] = useState("");
-  const [priceTo, setPriceTo] = useState("");
-  const [desc, setDesc] = useState("");
 
   useEffect(() => {
     if (!isAuthenticated) { router.push("/login"); return; }
@@ -67,64 +55,27 @@ export default function BecomeProviderPage() {
     return acc;
   }, {} as Record<string, DistrictInfo[]>);
 
-  const catSkills = categories.find(c => c.id === selCat)?.skills?.filter((s: any) => s.isActive) || [];
-
   const toggleDistrict = (d: string) =>
     setDistricts(p => p.includes(d) ? p.filter(x => x !== d) : [...p, d]);
 
-  const resetSkillModal = () => {
-    setSelCat(""); setSelSkill(""); setSelSkillName(""); setServiceType("UNORGANIZED");
-    setExpYears("1"); setPriceFrom(""); setPriceTo(""); setDesc(""); setEditingIdx(null);
-  };
-
-  const openEditSkill = (idx: number) => {
-    const s = skills[idx];
-    const cat = categories.find(c => c.skills?.some((sk: any) => sk.id === s.skillId));
-    setSelCat(cat?.id || ""); setSelSkill(s.skillId); setSelSkillName(s.skillName);
-    setServiceType(s.serviceType); setExpYears(String(s.experienceYears));
-    setPriceFrom(s.priceFrom); setPriceTo(s.priceTo); setDesc(s.description);
-    setEditingIdx(idx); setShowSkillModal(true);
-  };
-
-  const addSkill = () => {
-    if (!selSkill) return toast.error("Skill tanlang");
-    if (desc.trim().length < 20) return toast.error("Tavsif kamida 20 belgi");
-    if (priceFrom && priceTo && Number(priceTo) <= Number(priceFrom)) return toast.error("priceTo > priceFrom bo'lishi kerak");
-    const item: SkillItem = {
-      skillId: selSkill, skillName: selSkillName,
-      categoryName: categories.find(c => c.id === selCat)?.name || "",
-      serviceType, experienceYears: Number(expYears),
-      priceFrom, priceTo, description: desc.trim(), portfolioImages: []
-    };
-    if (editingIdx !== null) {
-      setSkills(p => p.map((s, i) => i === editingIdx ? item : s));
-    } else {
-      setSkills(p => [...p, item]);
-    }
-    resetSkillModal(); setShowSkillModal(false);
-  };
-
   const step1Valid = aboutMe.trim().length >= 50 && whyJoin.trim().length >= 30;
   const step2Valid = districts.length > 0;
-  const step3Valid = skills.length > 0;
+  const step3Valid = !!selectedCategoryId;
 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
       await api.post("/provider/apply", {
-        aboutMe: aboutMe.trim(), whyJoin: whyJoin.trim(),
+        aboutMe: aboutMe.trim(),
+        whyJoin: whyJoin.trim(),
         portfolioLink: portfolioLink.trim() || undefined,
         workDistricts: districts,
         dailyLimit: dailyLimit ? Number(dailyLimit) : undefined,
-        skills: skills.map(s => ({
-          skillId: s.skillId, serviceType: s.serviceType,
-          experienceYears: s.experienceYears,
-          priceFrom: s.priceFrom ? Number(s.priceFrom) : undefined,
-          priceTo: s.priceTo ? Number(s.priceTo) : undefined,
-          description: s.description, portfolioImages: []
-        }))
+        categoryId: selectedCategoryId,
+        skills: []
       });
-      setDone(true); setShowSummary(false);
+      setDone(true);
+      setShowSummary(false);
       setTimeout(() => router.push("/profile"), 3000);
     } catch (e: any) {
       toast.error(e.response?.data?.error || "Xatolik");
@@ -269,126 +220,72 @@ export default function BecomeProviderPage() {
       )}
 
       {/* ─── STEP 3 ─── */}
+      {/* ─── STEP 3 ─── */}
       {step === 3 && (
         <div className="glass-card p-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Xizmatlarim ({skills.length} ta)</label>
-            <button onClick={() => { resetSkillModal(); setShowSkillModal(true); }}
-              className="flex items-center gap-1.5 btn-primary px-3 py-1.5 rounded-lg text-sm font-bold">
-              <Plus size={14} /> Xizmat qo'shish
-            </button>
-          </div>
-          {skills.length === 0 ? (
-            <div className="py-10 text-center text-sm border-2 border-dashed rounded-xl" style={{ color: "var(--muted)", borderColor: "var(--border-strong)" }}>
-              Hali xizmat qo'shilmagan
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {skills.map((s, i) => (
-                <div key={i} className="rounded-xl p-4" style={{ backgroundColor: "var(--sidebar-hover)", border: "1px solid var(--border-strong)" }}>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-semibold" style={{ color: "var(--text)" }}>{s.skillName}</div>
-                      <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{s.categoryName} · {s.experienceYears} yil staj</div>
-                      <div className="text-xs text-indigo-500 mt-1 flex items-center gap-1">{SERVICE_TYPE_LABELS[s.serviceType].icon} {SERVICE_TYPE_LABELS[s.serviceType].label}</div>
-                      {(s.priceFrom || s.priceTo) && (
-                        <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                          {s.priceFrom && `${Number(s.priceFrom).toLocaleString()} so'm`}
-                          {s.priceFrom && s.priceTo && " — "}
-                          {s.priceTo && `${Number(s.priceTo).toLocaleString()} so'm`}
+          <div>
+            <label className="block text-sm font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>
+              Xizmat ko'rsatish yo'nalishi (Kategoriya) *
+            </label>
+            <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>
+              Siz tasdiqlangandan so'ng, ushbu kategoriya doirasidagi istalgan xizmatlarni (ko'nikmalarni) profilingizga qo'shishingiz mumkin bo'ladi.
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+              {categories.filter(c => c.isActive).map((c: any) => {
+                const isSelected = selectedCategoryId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedCategoryId(c.id)}
+                    className={`p-4 rounded-2xl text-left border-2 transition-all flex flex-col justify-between h-[120px] ${
+                      isSelected
+                        ? "bg-indigo-500/10 border-indigo-500 shadow-lg shadow-indigo-500/5 translate-y-[-2px]"
+                        : "hover:border-indigo-500/50 hover:bg-indigo-500/5"
+                    }`}
+                    style={!isSelected ? { borderColor: "var(--border-strong)", backgroundColor: "var(--bg)" } : undefined}
+                  >
+                    <div className="flex justify-between items-start w-full">
+                      <div className="text-2xl">{c.icon || "🛠️"}</div>
+                      {isSelected && (
+                        <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                          <Check size={12} strokeWidth={3} />
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-1.5">
-                      <button onClick={() => openEditSkill(i)} className="p-1.5 hover:bg-indigo-500/10 rounded-lg text-indigo-500 text-xs"><Pencil size={14} /></button>
-                      <button onClick={() => setSkills(p => p.filter((_, idx) => idx !== i))} className="p-1.5 hover:bg-red-500/10 rounded-lg text-red-500"><Trash2 size={14} /></button>
+                    <div>
+                      <h4 className="font-bold text-sm truncate" style={{ color: "var(--text)" }}>{c.name}</h4>
+                      <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "var(--text-secondary)" }}>
+                        {c.description || "Tavsif berilmagan"}
+                      </p>
                     </div>
-                  </div>
+                  </button>
+                );
+              })}
+              {categories.length === 0 && (
+                <div className="col-span-2 text-center py-8 text-sm" style={{ color: "var(--muted)" }}>
+                  Kategoriyalar yuklanmoqda...
                 </div>
-              ))}
+              )}
             </div>
-          )}
-          <div className="flex gap-3">
+          </div>
+
+          <div className="flex gap-3 pt-2">
             <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl font-bold text-sm btn-ghost flex items-center justify-center gap-2">
               <ChevronLeft size={16} /> Orqaga
             </button>
-            <button onClick={() => { if (!step3Valid) return toast.error("Kamida 1 ta xizmat qo'shing"); setShowSummary(true); }}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 ${step3Valid ? "btn-primary" : "cursor-not-allowed"}`}
-              style={!step3Valid ? { backgroundColor: "var(--sidebar-hover)", color: "var(--muted)" } : undefined}>
+            <button
+              onClick={() => {
+                if (!step3Valid) return toast.error("Kategoriya tanlang");
+                setShowSummary(true);
+              }}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                step3Valid ? "btn-primary" : "cursor-not-allowed"
+              }`}
+              style={!step3Valid ? { backgroundColor: "var(--sidebar-hover)", color: "var(--muted)" } : undefined}
+            >
               Yuborish <ChevronRight size={16} />
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Skill Modal ─── */}
-      {showSkillModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-modal fade-in p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>Xizmat {editingIdx !== null ? "tahrirlash" : "qo'shish"}</h3>
-              <button onClick={() => { resetSkillModal(); setShowSkillModal(false); }}><X size={20} style={{ color: "var(--muted)" }} /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Kategoriya *</label>
-                <select value={selCat} onChange={e => { setSelCat(e.target.value); setSelSkill(""); setSelSkillName(""); }}
-                  className="glass-input">
-                  <option value="">Tanlang...</option>
-                  {categories.filter(c => c.isActive).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              {selCat && (
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Xizmat turi *</label>
-                  <select value={selSkill} onChange={e => { setSelSkill(e.target.value); setSelSkillName(catSkills.find((s: any) => s.id === e.target.value)?.name || ""); }}
-                    className="glass-input">
-                    <option value="">Tanlang...</option>
-                    {catSkills.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>Xizmat uslubi *</label>
-                <div className="space-y-2">
-                  {(["ORGANIZED","UNORGANIZED","BOTH"] as const).map(t => (
-                    <label key={t} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${serviceType === t ? "border-indigo-400 bg-indigo-500/10" : ""}`} style={serviceType !== t ? { borderColor: "var(--border-strong)" } : undefined}>
-                      <input type="radio" name="serviceType" value={t} checked={serviceType === t} onChange={() => setServiceType(t)} className="accent-indigo-600" />
-                      <span className="text-sm flex items-center gap-1.5" style={{ color: "var(--text)" }}>{SERVICE_TYPE_LABELS[t].icon} {SERVICE_TYPE_LABELS[t].label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ish staji (yil) *</label>
-                <input type="number" min={0.5} max={50} step={0.5} value={expYears} onChange={e => setExpYears(e.target.value)}
-                  className="glass-input" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Narx (dan) so'm</label>
-                  <input type="number" value={priceFrom} onChange={e => setPriceFrom(e.target.value)} placeholder="50000"
-                    className="glass-input" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Narx (gacha) so'm</label>
-                  <input type="number" value={priceTo} onChange={e => setPriceTo(e.target.value)} placeholder="200000"
-                    className="glass-input" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tavsif * (kamida 20 belgi)</label>
-                <textarea rows={3} value={desc} onChange={e => setDesc(e.target.value)}
-                  placeholder="Men bu sohada 3 yildan beri ishlayman..."
-                  className="glass-textarea" />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => { resetSkillModal(); setShowSkillModal(false); }} className="flex-1 py-2.5 rounded-xl text-sm font-medium btn-ghost">Bekor</button>
-                <button onClick={addSkill} className="flex-1 py-2.5 btn-primary rounded-xl text-sm font-bold">
-                  {editingIdx !== null ? "Saqlash" : "Qo'shish"}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -408,8 +305,10 @@ export default function BecomeProviderPage() {
                 <p style={{ color: "var(--text)" }}>{districts.join(", ")}</p>
               </div>
               <div className="rounded-xl p-3" style={{ backgroundColor: "var(--sidebar-hover)" }}>
-                <div className="font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>Xizmatlar ({skills.length})</div>
-                {skills.map((s, i) => <div key={i} style={{ color: "var(--text)" }}>&#8226; {s.skillName} — {s.experienceYears} yil</div>)}
+                <div className="font-semibold mb-1" style={{ color: "var(--text-secondary)" }}>Tanlangan yo'nalish (Kategoriya)</div>
+                <p style={{ color: "var(--text)", fontWeight: "bold" }}>
+                  {categories.find(c => c.id === selectedCategoryId)?.name || "Kategoriya tanlanmagan"}
+                </p>
               </div>
             </div>
             <div className="flex gap-2 mt-5">

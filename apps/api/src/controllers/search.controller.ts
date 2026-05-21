@@ -102,7 +102,7 @@ export const getProviderDetail = async (req: Request, res: Response, next: NextF
       where: { id },
       include: {
         user: { select: { id: true, name: true, firstName: true, lastName: true, username: true, walletId: true, isOnline: true, lastSeenAt: true, avatar: true, reliability: true, createdAt: true } },
-        providerSkills: { include: { skill: true } },
+        providerSkills: { include: { skill: { include: { category: true } } } },
         districts: true,
         portfolio: true,
         schedules: true
@@ -115,11 +115,88 @@ export const getProviderDetail = async (req: Request, res: Response, next: NextF
 
     const reviews = await prisma.review.findMany({
       where: { revieweeId: provider.userId },
-      include: { reviewer: { select: { name: true, avatar: true } }, skill: true },
+      include: { reviewer: { select: { name: true, avatar: true } }, skill: { include: { category: true } } },
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json({ success: true, data: { ...provider, reviews } });
+    // 1. Skill bo'yicha statistika (o'rtacha reyting, sharhlar soni, ijobiy sharhlar foizi)
+    const providerSkillsWithStats = provider.providerSkills.map(ps => {
+      const skillReviews = reviews.filter(r => r.skillId === ps.skillId);
+      const count = skillReviews.length;
+      const averageRating = count > 0 
+        ? Number((skillReviews.reduce((sum, r) => sum + r.rating, 0) / count).toFixed(1)) 
+        : 0;
+      const positiveCount = skillReviews.filter(r => r.isPositive).length;
+      const positivePercent = count > 0 
+        ? Math.round((positiveCount / count) * 100) 
+        : 0;
+
+      return {
+        ...ps,
+        stats: {
+          averageRating,
+          reviewCount: count,
+          positivePercent
+        }
+      };
+    });
+
+    // 2. Kategoriya bo'yicha statistika (jami o'rtacha reyting, sharhlar soni va ijobiy foizi)
+    const categoryStatsMap: Record<string, { categoryId: string, name: string, description: string | null, icon: string | null, skillsCount: number, reviewCount: number, totalRating: number, positiveCount: number }> = {};
+
+    providerSkillsWithStats.forEach(ps => {
+      const category = ps.skill.category;
+      if (!category) return;
+
+      if (!categoryStatsMap[category.id]) {
+        categoryStatsMap[category.id] = {
+          categoryId: category.id,
+          name: category.name,
+          description: category.description,
+          icon: category.icon,
+          skillsCount: 0,
+          reviewCount: 0,
+          totalRating: 0,
+          positiveCount: 0
+        };
+      }
+      categoryStatsMap[category.id].skillsCount += 1;
+      
+      const skillReviews = reviews.filter(r => r.skillId === ps.skillId);
+      categoryStatsMap[category.id].reviewCount += skillReviews.length;
+      categoryStatsMap[category.id].totalRating += skillReviews.reduce((sum, r) => sum + r.rating, 0);
+      categoryStatsMap[category.id].positiveCount += skillReviews.filter(r => r.isPositive).length;
+    });
+
+    const categoryStats = Object.values(categoryStatsMap).map(cat => {
+      const averageRating = cat.reviewCount > 0 
+        ? Number((cat.totalRating / cat.reviewCount).toFixed(1)) 
+        : 0;
+      const positivePercent = cat.reviewCount > 0 
+        ? Math.round((cat.positiveCount / cat.reviewCount) * 100) 
+        : 0;
+
+      return {
+        categoryId: cat.categoryId,
+        name: cat.name,
+        description: cat.description,
+        icon: cat.icon,
+        skillsCount: cat.skillsCount,
+        reviewCount: cat.reviewCount,
+        averageRating,
+        positivePercent
+      };
+    });
+
+    res.json({ 
+      success: true, 
+      data: { 
+        ...provider, 
+        providerSkills: providerSkillsWithStats,
+        categoryStats,
+        reviews 
+      } 
+    });
   } catch (error) {
     next(error);
   }

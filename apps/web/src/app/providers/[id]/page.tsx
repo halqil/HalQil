@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import Avatar from "../../../components/Avatar";
 import {
   Star, MapPin, CheckCircle, ShieldCheck, X, Clock, Building,
-  Loader2, Send
+  Loader2, Send, ThumbsUp, Briefcase, Award, TrendingUp
 } from "lucide-react";
 
 export default function ProviderDetail() {
@@ -153,23 +153,66 @@ export default function ProviderDetail() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-8">
           <div className="glass-card p-8">
-            <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--text)" }}>Xizmatlar va Narxlar</h2>
-            <div className="space-y-4">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2" style={{ color: "var(--text)" }}>
+              <Award className="text-blue-500" size={24} />
+              Xizmatlar va Narxlar
+            </h2>
+            <div className="space-y-6">
               {provider.providerSkills?.map((ps: Record<string, any>) => (
-                <div key={ps.id} className="flex justify-between items-center p-4 rounded-xl transition-colors hover:bg-[var(--sidebar-hover)]"
+                <div key={ps.id} className="p-6 rounded-2xl transition-all duration-300 hover:bg-[var(--sidebar-hover)] border hover:border-blue-500/30 flex flex-col gap-4"
                   style={{ border: "1px solid var(--border-strong)" }}>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="text-green-500" size={20} />
-                    <div>
-                      <h4 className="font-bold" style={{ color: "var(--text)" }}>{ps.skill?.name}</h4>
-                      {ps.priceNote && <p className="text-sm" style={{ color: "var(--muted)" }}>{ps.priceNote}</p>}
-                      {ps.experienceYears > 0 && <p className="text-xs text-blue-500 font-medium mt-1">Staj: {ps.experienceYears} yil</p>}
+                  
+                  <div className="flex justify-between items-start gap-4 flex-wrap">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1 bg-green-500/10 p-1.5 rounded-lg text-green-500">
+                        <CheckCircle size={18} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg mb-0.5" style={{ color: "var(--text)" }}>{ps.skill?.name}</h4>
+                        <span className="text-xs px-2 py-0.5 rounded font-medium bg-blue-500/10 text-blue-500">
+                          {ps.skill?.category?.name || "Boshqa"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-xl text-blue-500">
+                        {ps.priceFrom ? `${ps.priceFrom.toLocaleString()} so'm` : "Kelishuv"}
+                        {ps.priceTo ? ` - ${ps.priceTo.toLocaleString()} so'm` : ""}
+                      </div>
+                      {ps.priceNote && <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>{ps.priceNote}</p>}
                     </div>
                   </div>
-                  <div className="text-right font-bold text-blue-500">
-                    {ps.priceFrom ? `${ps.priceFrom.toLocaleString()} so'm` : "Kelishuv"}
-                    {ps.priceTo ? ` - ${ps.priceTo.toLocaleString()} so'm` : ""}
+
+                  {ps.description && (
+                    <p className="text-sm border-l-2 pl-3 py-0.5 leading-relaxed" style={{ color: "var(--text-secondary)", borderColor: "var(--border-strong)" }}>
+                      {ps.description}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap gap-4 items-center text-xs font-medium pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+                    {ps.experienceYears > 0 && (
+                      <div className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                        <Briefcase size={14} className="text-blue-500" />
+                        <span>Staj: <strong className="font-bold" style={{ color: "var(--text)" }}>{ps.experienceYears} yil</strong></span>
+                      </div>
+                    )}
+                    {ps.stats?.reviewCount > 0 ? (
+                      <>
+                        <div className="flex items-center gap-1">
+                          <Star size={14} className="text-yellow-400 fill-yellow-400" />
+                          <span style={{ color: "var(--text)" }} className="font-bold">{ps.stats.averageRating}</span>
+                          <span style={{ color: "var(--muted)" }}>({ps.stats.reviewCount} sharh)</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-green-500/5 text-green-500 px-2 py-0.5 rounded-full text-[10px]">
+                          <ThumbsUp size={10} className="fill-current" />
+                          <span>{ps.stats.positivePercent}% ijobiy fikr</span>
+                        </div>
+                      </>
+                    ) : (
+                      <span className="italic" style={{ color: "var(--muted)" }}>Sharhlar hali yo'q</span>
+                    )}
                   </div>
+
                 </div>
               ))}
             </div>
@@ -195,6 +238,52 @@ export default function ProviderDetail() {
         </div>
 
         <div className="space-y-8">
+          {provider.categoryStats?.length > 0 && (
+            <div className="glass-card p-8">
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2" style={{ color: "var(--text)" }}>
+                <TrendingUp className="text-blue-500" size={24} />
+                Kategoriya Statistikasi
+              </h2>
+              <div className="space-y-6">
+                {provider.categoryStats.map((cat: Record<string, any>) => (
+                  <div key={cat.categoryId} className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-sm" style={{ color: "var(--text)" }}>{cat.name}</h4>
+                        <span className="text-[10px]" style={{ color: "var(--muted)" }}>
+                          {cat.skillsCount} xizmat turi
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        {cat.reviewCount > 0 ? (
+                          <div className="flex items-center gap-1 justify-end text-xs">
+                            <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                            <span style={{ color: "var(--text)" }} className="font-bold">{cat.averageRating}</span>
+                            <span style={{ color: "var(--muted)" }}>({cat.reviewCount} sharh)</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs italic" style={{ color: "var(--muted)" }}>Sharhsiz</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {cat.reviewCount > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-medium" style={{ color: "var(--muted)" }}>
+                          <span>Ijobiy fikrlar</span>
+                          <span className="text-green-500">{cat.positivePercent}%</span>
+                        </div>
+                        <div className="w-full bg-[var(--sidebar-hover)] h-1.5 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style={{ width: `${cat.positivePercent}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="glass-card p-8">
             <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--text)" }}>Mijozlar fikri</h2>
             {provider.reviews?.length === 0 ? (

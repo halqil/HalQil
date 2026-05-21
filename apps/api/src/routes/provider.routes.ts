@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import {
   applyForProvider, getMyProfile, updateProfile,
-  addSkill, removeSkill,
+  addSkill, updateSkill, removeSkill,
   addPortfolioImage, removePortfolioImage,
   applyToCreateOrganization, applyToJoinOrganization,
   updateAvailabilityStatus, getSchedule, updateSchedule, updateBio,
   getMyApplication, updateProviderSettings,
 } from '../controllers/provider.controller';
 import { validate } from '../middlewares/validate';
-import { applyProviderSchema, updateProfileSchema, addSkillSchema } from '../schemas/provider.schema';
+import { applyProviderSchema, updateProfileSchema, addSkillSchema, updateSkillSchema } from '../schemas/provider.schema';
 import { authenticate } from '../middlewares/auth';
 import { upload } from '../middlewares/upload';
 
@@ -33,6 +33,7 @@ router.post('/schedule', updateSchedule);
 
 // Skills
 router.post('/skills', validate(addSkillSchema), addSkill);
+router.patch('/skills/:skillId', validate(updateSkillSchema), updateSkill);
 router.delete('/skills/:skillId', removeSkill);
 
 // Portfolio
