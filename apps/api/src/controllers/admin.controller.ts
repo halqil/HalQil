@@ -530,6 +530,9 @@ export const getApplications = async (req: Request, res: Response, next: NextFun
           reviewer: {
             select: { id: true, firstName: true, lastName: true, name: true }
           },
+          category: {
+            select: { id: true, name: true }
+          },
           _count: { select: { skills: true } }
         },
         orderBy: { createdAt: 'desc' },
@@ -544,6 +547,7 @@ export const getApplications = async (req: Request, res: Response, next: NextFun
       status: a.status,
       createdAt: a.createdAt,
       user: a.user,
+      category: a.category ? { id: a.category.id, name: a.category.name } : null,
       skillsCount: a._count.skills,
       districts: a.workDistricts,
       reviewedBy: a.reviewer ? { id: a.reviewer.id, name: a.reviewer.name, firstName: a.reviewer.firstName, lastName: a.reviewer.lastName } : null,
@@ -580,6 +584,9 @@ export const getApplicationDetail = async (req: Request, res: Response, next: Ne
         reviewer: {
           select: { id: true, name: true, firstName: true, lastName: true }
         },
+        category: {
+          select: { id: true, name: true, description: true }
+        },
         skills: {
           include: {
             skill: { include: { category: { select: { id: true, name: true } } } }
@@ -612,7 +619,11 @@ export const approveApplication = async (req: Request, res: Response, next: Next
 
     const application = await prisma.providerApplication.findUnique({
       where: { id },
-      include: { skills: true, user: true }
+      include: {
+        skills: true,
+        user: true,
+        category: { select: { id: true, name: true } }
+      }
     });
     if (!application) return res.status(404).json({ success: false, error: 'Ariza topilmadi' });
     if (application.status !== 'PENDING') return res.status(400).json({ success: false, error: 'Ariza allaqachon ko\'rib chiqilgan' });
@@ -677,8 +688,8 @@ export const approveApplication = async (req: Request, res: Response, next: Next
       await tx.notification.create({
         data: {
           userId: application.userId,
-          title: 'Arizangiz tasdiqlandi! 🎉',
-          message: message.trim(),
+          title: 'Arizangiz tasdiqlandi!',
+          message: `${application.category?.name ?? ''} kategoriyasi bo'yicha provayderlik huquqi berildi. ${message.trim()}`,
           type: 'APPLICATION_RESPONSE',
           link: '/provider/dashboard',
           isGlobal: false

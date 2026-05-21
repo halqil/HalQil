@@ -7,7 +7,7 @@ import { timeAgo } from "@/lib/timeAgo";
 import {
   Eye, Check, X, MessageSquare, Search, ChevronLeft, ChevronRight,
   ExternalLink, Clock, CheckCircle, XCircle, Building, Home, RefreshCw,
-  MapPin, Wrench, User, Calendar, ShieldCheck
+  MapPin, Wrench, User, Calendar, ShieldCheck, Briefcase
 } from "lucide-react";
 
 type Application = {
@@ -21,6 +21,7 @@ type Application = {
     username?: string; walletId?: string; email?: string; avatar?: string;
     isOnline?: boolean; reliability?: number;
   };
+  category?: { id: string; name: string } | null;
 };
 
 type AppDetail = Application & {
@@ -31,6 +32,7 @@ type AppDetail = Application & {
     priceFrom?: number; priceTo?: number; description: string; portfolioImages: string[];
     skill: { id: string; name: string; category: { id: string; name: string } };
   }>;
+  category?: { id: string; name: string; description?: string } | null;
 };
 
 const STATUS_META: Record<string, { icon: any; label: string; color: string }> = {
@@ -65,6 +67,7 @@ export default function AdminApplications() {
   const [rejectReason, setRejectReason] = useState("");
   const [chatMsg, setChatMsg]           = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [approveAppCategory, setApproveAppCategory] = useState<string>("");
 
   const fetchApplications = useCallback(async () => {
     setLoading(true);
@@ -99,7 +102,7 @@ export default function AdminApplications() {
     try {
       await api.patch(`/admin/applications/${approveApp}/approve`, { message: approveMsg });
       toast.success("Ariza tasdiqlandi!");
-      setApproveApp(null); setApproveMsg(""); setDetail(null); fetchApplications();
+      setApproveApp(null); setApproveMsg(""); setApproveAppCategory(""); setDetail(null); fetchApplications();
     } catch (e) {
       toast.error((e as AxiosError<{ error: string }>).response?.data?.error || "Xatolik");
     } finally { setActionLoading(false); }
@@ -188,7 +191,15 @@ export default function AdminApplications() {
                       </div>
                       <div className="text-xs mt-0.5 flex gap-3 flex-wrap" style={{ color: "var(--muted)" }}>
                         <span className="flex items-center gap-1"><Calendar size={11} /> {timeAgo(a.createdAt)}</span>
-                        <span className="flex items-center gap-1"><Wrench size={11} /> {a.skillsCount} ta xizmat</span>
+                        {a.category ? (
+                          <span className="flex items-center gap-1">
+                            <Briefcase size={11} /> {a.category.name}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Wrench size={11} /> {a.skillsCount} ta xizmat
+                          </span>
+                        )}
                         {a.districts?.length > 0 && (
                           <span className="flex items-center gap-1">
                             <MapPin size={11} /> {a.districts.slice(0,2).join(", ")}{a.districts.length > 2 ? ` +${a.districts.length-2}` : ""}
@@ -219,7 +230,7 @@ export default function AdminApplications() {
                       <button onClick={() => openDetail(a.id)} title="Batafsil"
                         className="p-2 rounded-lg hover:bg-indigo-50 text-indigo-600 transition-colors"><Eye size={16} /></button>
                       {a.status === "PENDING" && <>
-                        <button onClick={() => { setApproveApp(a.id); setApproveMsg(""); }} title="Tasdiqlash"
+                        <button onClick={() => { setApproveApp(a.id); setApproveMsg(""); setApproveAppCategory(a.category?.name ?? ""); }} title="Tasdiqlash"
                           className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600 transition-colors"><Check size={16} /></button>
                         <button onClick={() => { setChatApp(a.id); setChatMsg(""); }} title="Chat"
                           className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"><MessageSquare size={16} /></button>
@@ -325,6 +336,26 @@ export default function AdminApplications() {
                       <a href={detail.portfolioLink} target="_blank" className="text-sm text-indigo-600 hover:underline break-all">{detail.portfolioLink}</a>
                     </div>
                   )}
+                  {detail.category && (
+                    <div>
+                      <div className="text-xs font-semibold uppercase mb-1" style={{ color: "var(--text-secondary)" }}>
+                        Kategoriya
+                      </div>
+                      <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                        <Briefcase size={16} className="text-indigo-500 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+                            {detail.category.name}
+                          </div>
+                          {detail.category.description && (
+                            <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                              {detail.category.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <div className="text-xs font-semibold uppercase mb-1" style={{ color: "var(--text-secondary)" }}>Tumanlar</div>
                     <div className="flex flex-wrap gap-1.5">
@@ -340,31 +371,43 @@ export default function AdminApplications() {
 
                 {/* Skills */}
                 <div>
-                  <div className="text-xs font-semibold uppercase mb-3" style={{ color: "var(--text-secondary)" }}>Xizmatlar ({detail.skills.length})</div>
-                  <div className="space-y-3">
-                    {detail.skills.map(s => (
-                      <div key={s.id} className="rounded-xl p-4" style={{ backgroundColor: "var(--sidebar-hover)", border: "1px solid var(--border-strong)" }}>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="font-semibold" style={{ color: "var(--text)" }}>{s.skill.name}</div>
-                            <div className="text-xs" style={{ color: "var(--text-secondary)" }}>{s.skill.category.name}</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-4 text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
-                          <span>Staj: <strong>{s.experienceYears} yil</strong></span>
-                          {s.priceFrom && <span>Dan: <strong>{s.priceFrom.toLocaleString()} so&apos;m</strong></span>}
-                          {s.priceTo && <span>Gacha: <strong>{s.priceTo.toLocaleString()} so&apos;m</strong></span>}
-                        </div>
-                        <p className="text-xs mt-2 p-2 rounded-lg" style={{ color: "var(--text-secondary)", backgroundColor: "var(--card)", border: "1px solid var(--border-strong)" }}>{s.description}</p>
-                      </div>
-                    ))}
+                  <div className="text-xs font-semibold uppercase mb-3" style={{ color: "var(--text-secondary)" }}>
+                    Xizmatlar ({detail.skills.length})
                   </div>
+                  {detail.skills.length === 0 ? (
+                    <div className="text-sm p-4 rounded-xl text-center" style={{ color: "var(--muted)", backgroundColor: "var(--sidebar-hover)" }}>
+                      Arizada xizmatlar kiritilmagan
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {detail.skills.map(s => (
+                        <div key={s.id} className="rounded-xl p-4" style={{ backgroundColor: "var(--sidebar-hover)", border: "1px solid var(--border-strong)" }}>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="font-semibold" style={{ color: "var(--text)" }}>{s.skill.name}</div>
+                              <div className="text-xs" style={{ color: "var(--text-secondary)" }}>{s.skill.category.name}</div>
+                            </div>
+                          </div>
+                          <div className="flex gap-4 text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
+                            <span>Staj: <strong>{s.experienceYears} yil</strong></span>
+                            {s.priceFrom && <span>Dan: <strong>{s.priceFrom.toLocaleString()} so&apos;m</strong></span>}
+                            {s.priceTo && <span>Gacha: <strong>{s.priceTo.toLocaleString()} so&apos;m</strong></span>}
+                          </div>
+                          {s.description && (
+                            <p className="text-xs mt-2 p-2 rounded-lg" style={{ color: "var(--text-secondary)", backgroundColor: "var(--card)", border: "1px solid var(--border-strong)" }}>
+                              {s.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions (only PENDING) */}
                 {detail.status === "PENDING" && (
                   <div className="flex gap-2 pt-2 sticky bottom-0 py-4" style={{ backgroundColor: "var(--card)", borderTop: "1px solid var(--border-strong)" }}>
-                    <button onClick={() => { setApproveApp(detail.id); setApproveMsg(""); }}
+                    <button onClick={() => { setApproveApp(detail.id); setApproveMsg(""); setApproveAppCategory(detail.category?.name ?? ""); }}
                       className="btn-success flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
                       <Check size={15}/> Qabul
                     </button>
@@ -389,6 +432,12 @@ export default function AdminApplications() {
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <form onSubmit={handleApprove} className="glass-modal fade-in p-6 w-full max-w-md space-y-4">
             <h3 className="text-lg font-bold text-emerald-500 flex items-center gap-2"><CheckCircle size={20} /> Arizani qabul qilish</h3>
+            {approveAppCategory && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-500/10 text-indigo-500 text-sm font-medium">
+                <Briefcase size={15} />
+                <span>{approveAppCategory} kategoriyasi bo&apos;yicha ruxsat beriladi</span>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Qabul qilish xabari *</label>
               <textarea required rows={4} value={approveMsg} onChange={e => setApproveMsg(e.target.value)}
@@ -396,7 +445,7 @@ export default function AdminApplications() {
                 className="glass-textarea w-full resize-none"/>
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setApproveApp(null)} className="btn-ghost flex-1 py-2.5 rounded-xl text-sm font-medium">Bekor</button>
+              <button type="button" onClick={() => { setApproveApp(null); setApproveAppCategory(""); }} className="btn-ghost flex-1 py-2.5 rounded-xl text-sm font-medium">Bekor</button>
               <button type="submit" disabled={actionLoading} className="btn-success flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60">
                 {actionLoading ? "Yuborilmoqda..." : "Tasdiqlash"}
               </button>
