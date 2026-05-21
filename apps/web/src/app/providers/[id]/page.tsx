@@ -1,357 +1,534 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import api from "../../../lib/api";
-import { useParams, useRouter } from "next/navigation";
-import { useAuthStore } from "../../../lib/store";
-import { AxiosError } from "axios";
-import toast from "react-hot-toast";
-import Avatar from "../../../components/Avatar";
+"use client"
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
+import api from "@/lib/api"
+import { useAuthStore } from "@/lib/store"
+import Avatar from "@/components/Avatar"
+import toast from "react-hot-toast"
 import {
-  Star, MapPin, CheckCircle, ShieldCheck, X, Clock, Building,
-  Loader2, Send, ThumbsUp, Briefcase, Award, TrendingUp
-} from "lucide-react";
+  Star, MapPin, Shield, Clock, CheckCircle, XCircle,
+  ChevronLeft, ChevronRight, Building, Briefcase,
+  ThumbsUp, Calendar, Send, X, Loader2, Package,
+  ArrowUpDown, TrendingUp
+} from "lucide-react"
 
-export default function ProviderDetail() {
-  const params = useParams();
-  const id = params?.id as string;
-  const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+const SERVICE_TYPE_LABELS: Record<string, string> = {
+  ORGANIZED: "Tashkilotli",
+  INDEPENDENT: "Tashkilotsiz",
+  BOTH: "Ikkalasi"
+}
 
-  const [provider, setProvider] = useState<Record<string, any> | null>(null);
-  const [loading, setLoading] = useState(true);
+const SORT_OPTIONS = [
+  { value: "date_desc", label: "Yangi" },
+  { value: "date_asc",  label: "Eski" },
+  { value: "rating_desc", label: "Reyting yuqori" },
+  { value: "rating_asc",  label: "Reyting past" },
+  { value: "positive",    label: "Musbat" },
+  { value: "negative",    label: "Manfiy" },
+]
 
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [selectedSkillId, setSelectedSkillId] = useState("");
-  const [description, setDescription] = useState("");
-  const [address, setAddress] = useState("");
-  const [preferredDate, setPreferredDate] = useState("");
-  const [orderLoading, setOrderLoading] = useState(false);
+export default function ProviderDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
 
-  const getMinDateTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  };
-  const [minDateTime, setMinDateTime] = useState(getMinDateTime);
+  const [provider, setProvider] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  const [activeCatTab, setActiveCatTab] = useState("all")
+  const [reviewCatTab, setReviewCatTab] = useState("all")
+  const [reviewSort, setReviewSort] = useState("date_desc")
+
+  const [showOrderModal, setShowOrderModal] = useState(false)
+  const [selectedSkillId, setSelectedSkillId] = useState("")
+  const [description, setDescription] = useState("")
+  const [address, setAddress] = useState("")
+  const [preferredDate, setPreferredDate] = useState("")
+  const [orderLoading, setOrderLoading] = useState(false)
 
   useEffect(() => {
-    if (!id) return;
-    const fetchDetail = async () => {
-      try {
-        const res = await api.get(`/providers/${id}`);
+    if (!id) return
+    api.get(`/providers/${id}`)
+      .then(res => {
         if (res.data.success) {
-          setProvider(res.data.data);
-          if (res.data.data.providerSkills?.length > 0) setSelectedSkillId(res.data.data.providerSkills[0].skillId);
+          setProvider(res.data.data)
+          if (res.data.data.providerSkills?.length > 0) {
+            setSelectedSkillId(res.data.data.providerSkills[0].skillId)
+          }
         }
-      } catch (error) {
-        toast.error("Mutaxassis topilmadi");
-        router.push("/providers");
-      } finally { setLoading(false); }
-    };
-    fetchDetail();
-    const interval = setInterval(() => setMinDateTime(getMinDateTime()), 60_000);
-    return () => clearInterval(interval);
-  }, [id, router]);
+      })
+      .catch(() => { toast.error("Provayder topilmadi"); router.push("/providers") })
+      .finally(() => setLoading(false))
+  }, [id, router])
 
   const handleOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isAuthenticated) { toast.error("Avval tizimga kiring!"); router.push("/auth/login"); return; }
-    setOrderLoading(true);
+    e.preventDefault()
+    if (!isAuthenticated) { toast.error("Avval tizimga kiring"); router.push("/auth/login"); return }
+    setOrderLoading(true)
     try {
-      const res = await api.post("/orders", { provider_id: id, skill_id: selectedSkillId, description, address, preferred_date: preferredDate });
-      if (res.data.success) { toast.success("Buyurtma muvaffaqiyatli yuborildi!"); setShowOrderModal(false); }
-    } catch (error) {
-      const err = error as AxiosError<{ error: string }>;
-      toast.error(err.response?.data?.error || "Xatolik yuz berdi");
-    } finally { setOrderLoading(false); }
-  };
+      const res = await api.post("/orders", {
+        provider_id: id,
+        skill_id: selectedSkillId,
+        description,
+        address,
+        preferred_date: preferredDate || undefined
+      })
+      if (res.data.success) {
+        toast.success("Buyurtma yuborildi!")
+        setShowOrderModal(false)
+        setDescription(""); setAddress(""); setPreferredDate("")
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Xatolik")
+    } finally {
+      setOrderLoading(false)
+    }
+  }
 
-  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
-  if (!provider) return null;
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+    </div>
+  )
+  if (!provider) return null
+
+  const categories = provider.categoryStats ?? []
+  const allSkills = provider.providerSkills ?? []
+  const filteredSkills = activeCatTab === "all"
+    ? allSkills
+    : allSkills.filter((ps: any) => ps.skill?.category?.id === activeCatTab)
+
+  const allReviews = provider.reviews ?? []
+  const filteredReviews = (() => {
+    let list = reviewCatTab === "all"
+      ? allReviews
+      : allReviews.filter((r: any) => r.skill?.category?.id === reviewCatTab)
+
+    switch (reviewSort) {
+      case "date_asc":    list = [...list].sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); break
+      case "rating_desc": list = [...list].sort((a: any, b: any) => b.rating - a.rating); break
+      case "rating_asc":  list = [...list].sort((a: any, b: any) => a.rating - b.rating); break
+      case "positive":    list = list.filter((r: any) => r.isPositive); break
+      case "negative":    list = list.filter((r: any) => !r.isPositive); break
+      default:            list = [...list].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    }
+    return list
+  })()
+
+  const renderStars = (rating: number, size = 14) => (
+    <div className="flex items-center gap-0.5">
+      {[1,2,3,4,5].map(i => (
+        <Star key={i} size={size}
+          className={i <= Math.round(rating) ? "text-yellow-400 fill-yellow-400" : ""}
+          style={{ color: i <= Math.round(rating) ? undefined : "var(--border-strong)" }}
+        />
+      ))}
+    </div>
+  )
+
+  const timeAgo = (date: string) => {
+    const diff = Date.now() - new Date(date).getTime()
+    const d = Math.floor(diff / 86400000)
+    if (d === 0) return "Bugun"
+    if (d === 1) return "Kecha"
+    if (d < 30) return `${d} kun oldin`
+    if (d < 365) return `${Math.floor(d/30)} oy oldin`
+    return `${Math.floor(d/365)} yil oldin`
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 fade-in">
-      {/* Profile Header */}
-      <div className="glass-card p-8 flex flex-col md:flex-row gap-8 items-start relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-bl-full -z-10" />
+    <div className="max-w-5xl mx-auto flex flex-col gap-8 fade-in">
 
-        <Avatar name={provider.user?.name} avatar={provider.user?.avatar} size="xl" className="!w-32 !h-32 !text-4xl ring-4 ring-[var(--border)]" />
+      {/* Orqaga */}
+      <button onClick={() => router.back()}
+        className="flex items-center gap-2 text-sm w-fit hover:text-blue-500 transition-colors"
+        style={{ color: "var(--text-secondary)" }}>
+        <ChevronLeft size={18} /> Provayderlar
+      </button>
 
-        <div className="flex-1 space-y-4">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-3xl font-bold" style={{ color: "var(--text)" }}>{provider.user?.name}</h1>
-                <div className={`w-3 h-3 rounded-full ${provider.user?.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-              </div>
-              <div className="text-sm flex items-center gap-2 flex-wrap mb-2" style={{ color: "var(--muted)" }}>
-                <span className="font-medium text-blue-500">@{provider.user?.username}</span>
-                <span style={{ color: "var(--border-strong)" }}>|</span>
-                <span className="font-mono text-xs px-1 rounded" style={{ backgroundColor: "var(--sidebar-hover)" }}>ID: {provider.user?.walletId?.slice(0, 8)}...</span>
-                <span style={{ color: "var(--border-strong)" }}>|</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                  provider.availabilityStatus === 'AVAILABLE' ? 'bg-green-500/10 text-green-600' :
-                  provider.availabilityStatus === 'BUSY' ? 'bg-yellow-500/10 text-yellow-600' : 'bg-gray-500/10 text-gray-500'
-                }`}>
-                  {provider.availabilityStatus === 'AVAILABLE' ? 'Bo\'sh' : provider.availabilityStatus === 'BUSY' ? 'Band' : 'Offline'}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-sm font-medium">
-                <div className="flex items-center gap-1 text-yellow-500">
-                  <Star size={18} className="fill-current" />
-                  <span>{provider.user?.reliability?.toFixed(1)}% ishonch</span>
-                </div>
-                <div className="flex items-center gap-1 text-yellow-500">
-                  <Star size={18} className="fill-current" />
-                  <span>{provider.reviews?.length > 0 ? (provider.reviews.reduce((acc: number, curr: Record<string, any>) => acc + curr.rating, 0) / provider.reviews.length).toFixed(1) : 0} ({provider.reviews?.length || 0} sharh)</span>
-                </div>
-                <div className="flex items-center gap-1 text-blue-500">
-                  <ShieldCheck size={18} /> <span>Tasdiqlangan</span>
-                </div>
-              </div>
+      {/* ── ASOSIY BLOK ── */}
+      <section className="glass-card p-6 md:p-8">
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex-shrink-0">
+            <Avatar name={provider.user?.name} avatar={provider.user?.avatar} size="xl" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            {/* Ism + statuslar */}
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>
+                {provider.user?.name}
+              </h1>
+              <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${provider.user?.isOnline ? "bg-green-500" : "bg-gray-400"}`} />
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ color: "var(--text-secondary)", backgroundColor: "var(--sidebar-hover)" }}>
+                {provider.user?.isOnline ? "Online" : "Offline"}
+              </span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                provider.availabilityStatus === "AVAILABLE"
+                  ? "bg-green-500/10 text-green-600"
+                  : "bg-yellow-500/10 text-yellow-600"
+              }`}>
+                {provider.availabilityStatus === "AVAILABLE" ? "Bo'sh" : "Band"}
+              </span>
             </div>
 
-            <div className="flex flex-col items-start md:items-end gap-1">
-              <button onClick={() => provider.availabilityStatus === 'AVAILABLE' && setShowOrderModal(true)}
-                disabled={provider.availabilityStatus !== 'AVAILABLE'}
-                className={`px-8 py-3 rounded-xl font-bold transition-all w-full md:w-auto ${
-                  provider.availabilityStatus === 'AVAILABLE' ? 'btn-primary' : 'opacity-50 cursor-not-allowed'
-                }`}
-                style={provider.availabilityStatus !== 'AVAILABLE' ? { backgroundColor: 'var(--skeleton)', color: 'var(--muted)', boxShadow: 'none' } : undefined}>
-                Buyurtma berish
-              </button>
-              {provider.availabilityStatus === 'BUSY' && (
-                <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
-                  <Clock size={12} /> Provayder hozir band
+            {/* Statistika qatori */}
+            <div className="flex flex-wrap gap-4 text-sm mb-3">
+              <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                <Star size={15} className="text-yellow-400 fill-yellow-400" />
+                <strong style={{ color: "var(--text)" }}>{provider.rating?.toFixed(1) || "—"}</strong>
+                reyting
+              </span>
+              <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                <Shield size={15} className="text-green-500" />
+                <strong style={{ color: "var(--text)" }}>{provider.user?.reliability?.toFixed(0)}%</strong>
+                ishonchlilik
+              </span>
+              <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                <Package size={15} className="text-blue-500" />
+                <strong style={{ color: "var(--text)" }}>{provider.successfulOrders}</strong>
+                bajarilgan
+              </span>
+              <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                <Calendar size={15} className="text-indigo-500" />
+                {new Date(provider.user?.createdAt).getFullYear()} yildan
+              </span>
+            </div>
+
+            {/* Narx va hudud */}
+            <div className="flex flex-wrap gap-3 text-sm mb-3">
+              {(provider.priceRange?.from || provider.priceRange?.to) && (
+                <span className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+                  💰
+                  {provider.priceRange.from
+                    ? `${provider.priceRange.from.toLocaleString()} so'm`
+                    : ""}
+                  {provider.priceRange.from && provider.priceRange.to ? " — " : ""}
+                  {provider.priceRange.to
+                    ? `${provider.priceRange.to.toLocaleString()} so'm`
+                    : ""}
+                </span>
+              )}
+              {provider.districts?.length > 0 && (
+                <span className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+                  <MapPin size={14} className="text-red-400" />
+                  {provider.districts.slice(0, 3).map((d: any) => d.districtName).join(", ")}
+                  {provider.districts.length > 3 && ` +${provider.districts.length - 3}`}
                 </span>
               )}
             </div>
+
+            {/* Tashkilot */}
+            {provider.memberOfOrganizations?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {provider.memberOfOrganizations.map((m: any) => (
+                  <Link key={m.organization.id} href={`/organizations/${m.organization.id}`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm hover:opacity-80 transition-opacity"
+                    style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                    {m.organization.logo
+                      ? <img src={m.organization.logo} className="w-5 h-5 rounded object-cover" alt="" />
+                      : <Building size={14} className="text-indigo-500" />}
+                    <span style={{ color: "var(--text)" }}>{m.organization.name}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Bio */}
+            {provider.bio && (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{provider.bio}</p>
+            )}
           </div>
 
-          <p style={{ color: "var(--text-secondary)" }}>{provider.bio || "O'zi haqida ma'lumot kiritilmagan."}</p>
-
-          <div className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg inline-flex" style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text-secondary)" }}>
-            <MapPin size={16} className="text-red-500" />
-            <span className="font-medium">Xizmat hududlari:</span>
-            {provider.districts?.map((d: Record<string, any>) => d.districtName).join(", ")}
+          {/* Buyurtma tugmasi */}
+          <div className="flex-shrink-0">
+            <button
+              onClick={() => provider.availabilityStatus === "AVAILABLE" && setShowOrderModal(true)}
+              disabled={provider.availabilityStatus !== "AVAILABLE"}
+              className={`px-6 py-3 rounded-xl font-bold text-sm w-full md:w-auto ${
+                provider.availabilityStatus === "AVAILABLE"
+                  ? "btn-primary"
+                  : "opacity-50 cursor-not-allowed"
+              }`}
+              style={provider.availabilityStatus !== "AVAILABLE"
+                ? { backgroundColor: "var(--sidebar-hover)", color: "var(--muted)", boxShadow: "none" }
+                : undefined}>
+              <Send size={16} className="inline mr-2" />
+              Buyurtma berish
+            </button>
+            {provider.availabilityStatus !== "AVAILABLE" && (
+              <p className="text-xs text-center mt-2 text-yellow-600">Hozir band</p>
+            )}
           </div>
+        </div>
+      </section>
 
-          {provider.memberOfOrganizations?.map((m: Record<string, any>) => m.status === 'ACTIVE' && (
-            <div key={m.id} className="mt-4 flex items-center gap-3 p-3 glass-card !rounded-xl bg-indigo-500/5">
-              {m.organization?.logo ? <img src={m.organization.logo} className="w-10 h-10 rounded-lg object-cover" /> :
-                <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center"><Building size={20} className="text-indigo-500" /></div>}
-              <div>
-                <div className="text-xs text-indigo-500 font-bold uppercase tracking-wider">Tashkilot a'zosi</div>
-                <a href={`/organizations/${m.organization?.id}`} className="font-bold hover:text-indigo-500 transition-colors" style={{ color: "var(--text)" }}>{m.organization?.name}</a>
+      {/* ── XIZMATLAR ── */}
+      <section>
+        <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text)" }}>
+          <Briefcase size={18} className="inline mr-2 text-blue-500" />
+          Xizmatlar
+        </h2>
+
+        {/* Kategoriya tablar */}
+        {categories.length > 1 && (
+          <div className="flex gap-2 flex-wrap mb-4">
+            <button
+              onClick={() => setActiveCatTab("all")}
+              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                activeCatTab === "all" ? "bg-blue-500 text-white" : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+              }`}>
+              Barchasi ({allSkills.length})
+            </button>
+            {categories.map((cat: any) => (
+              <button key={cat.categoryId}
+                onClick={() => setActiveCatTab(cat.categoryId)}
+                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                  activeCatTab === cat.categoryId ? "bg-blue-500 text-white" : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+                }`}>
+                {cat.name} ({cat.skillsCount})
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Skill kartalar */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredSkills.map((ps: any) => (
+            <div key={ps.id} className="glass-card p-5 flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-base truncate" style={{ color: "var(--text)" }}>
+                    {ps.skill?.name}
+                  </h3>
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>
+                    {ps.skill?.category?.name} · {SERVICE_TYPE_LABELS[ps.serviceType]}
+                  </span>
+                </div>
+                {ps.stats?.averageRating > 0 && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Star size={13} className="text-yellow-400 fill-yellow-400" />
+                    <span className="text-sm font-bold" style={{ color: "var(--text)" }}>
+                      {ps.stats.averageRating}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+                <span className="flex items-center gap-1">
+                  <Clock size={11} /> {ps.experienceYears} yil staj
+                </span>
+                {ps.stats?.positivePercent > 0 && (
+                  <span className="flex items-center gap-1 text-green-600">
+                    <ThumbsUp size={11} /> {ps.stats.positivePercent}% ijobiy
+                  </span>
+                )}
+                {ps.stats?.reviewCount > 0 && (
+                  <span>{ps.stats.reviewCount} sharh</span>
+                )}
+              </div>
+
+              {(ps.priceFrom || ps.priceTo) && (
+                <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                  {ps.priceFrom ? `${ps.priceFrom.toLocaleString()} so'm` : ""}
+                  {ps.priceFrom && ps.priceTo ? " — " : ""}
+                  {ps.priceTo ? `${ps.priceTo.toLocaleString()} so'm` : ""}
+                  {ps.priceNote && (
+                    <span className="text-xs font-normal ml-1" style={{ color: "var(--muted)" }}>
+                      ({ps.priceNote})
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2 mt-1">
+                <Link
+                  href={`/providers/${id}/skills/${ps.skillId}`}
+                  className="flex-1 py-2 rounded-xl text-sm font-medium text-center transition-colors hover:bg-blue-500/10 text-blue-500"
+                  style={{ border: "1px solid var(--border-strong)" }}>
+                  Batafsil <ChevronRight size={14} className="inline" />
+                </Link>
+                <button
+                  onClick={() => { setSelectedSkillId(ps.skillId); setShowOrderModal(true) }}
+                  className="flex-1 py-2 btn-primary rounded-xl text-sm font-bold">
+                  Buyurtma
+                </button>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-8">
-          <div className="glass-card p-8">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2" style={{ color: "var(--text)" }}>
-              <Award className="text-blue-500" size={24} />
-              Xizmatlar va Narxlar
-            </h2>
-            <div className="space-y-6">
-              {provider.providerSkills?.map((ps: Record<string, any>) => (
-                <div key={ps.id} className="p-6 rounded-2xl transition-all duration-300 hover:bg-[var(--sidebar-hover)] border hover:border-blue-500/30 flex flex-col gap-4"
-                  style={{ border: "1px solid var(--border-strong)" }}>
-                  
-                  <div className="flex justify-between items-start gap-4 flex-wrap">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-1 bg-green-500/10 p-1.5 rounded-lg text-green-500">
-                        <CheckCircle size={18} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-lg mb-0.5" style={{ color: "var(--text)" }}>{ps.skill?.name}</h4>
-                        <span className="text-xs px-2 py-0.5 rounded font-medium bg-blue-500/10 text-blue-500">
-                          {ps.skill?.category?.name || "Boshqa"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-xl text-blue-500">
-                        {ps.priceFrom ? `${ps.priceFrom.toLocaleString()} so'm` : "Kelishuv"}
-                        {ps.priceTo ? ` - ${ps.priceTo.toLocaleString()} so'm` : ""}
-                      </div>
-                      {ps.priceNote && <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>{ps.priceNote}</p>}
-                    </div>
-                  </div>
+      {/* ── PORTFOLIO ── */}
+      {provider.portfolio?.length > 0 && (
+        <section>
+          <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text)" }}>Portfolio</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {provider.portfolio.map((img: any) => (
+              <div key={img.id} className="aspect-square rounded-xl overflow-hidden group"
+                style={{ backgroundColor: "var(--sidebar-hover)" }}>
+                <img
+                  src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}${img.imageUrl}`}
+                  alt="Portfolio"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-                  {ps.description && (
-                    <p className="text-sm border-l-2 pl-3 py-0.5 leading-relaxed" style={{ color: "var(--text-secondary)", borderColor: "var(--border-strong)" }}>
-                      {ps.description}
-                    </p>
-                  )}
+      {/* ── SHARHLAR ── */}
+      <section>
+        <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text)" }}>
+          Sharhlar
+          {allReviews.length > 0 && (
+            <span className="ml-2 text-sm font-normal" style={{ color: "var(--text-secondary)" }}>
+              ({allReviews.length} ta)
+            </span>
+          )}
+        </h2>
 
-                  <div className="flex flex-wrap gap-4 items-center text-xs font-medium pt-2 border-t" style={{ borderColor: "var(--border)" }}>
-                    {ps.experienceYears > 0 && (
-                      <div className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
-                        <Briefcase size={14} className="text-blue-500" />
-                        <span>Staj: <strong className="font-bold" style={{ color: "var(--text)" }}>{ps.experienceYears} yil</strong></span>
-                      </div>
-                    )}
-                    {ps.stats?.reviewCount > 0 ? (
-                      <>
-                        <div className="flex items-center gap-1">
-                          <Star size={14} className="text-yellow-400 fill-yellow-400" />
-                          <span style={{ color: "var(--text)" }} className="font-bold">{ps.stats.averageRating}</span>
-                          <span style={{ color: "var(--muted)" }}>({ps.stats.reviewCount} sharh)</span>
-                        </div>
-                        <div className="flex items-center gap-1 bg-green-500/5 text-green-500 px-2 py-0.5 rounded-full text-[10px]">
-                          <ThumbsUp size={10} className="fill-current" />
-                          <span>{ps.stats.positivePercent}% ijobiy fikr</span>
-                        </div>
-                      </>
-                    ) : (
-                      <span className="italic" style={{ color: "var(--muted)" }}>Sharhlar hali yo'q</span>
-                    )}
-                  </div>
+        {allReviews.length > 0 && (
+          <>
+            {/* Kategoriya filter */}
+            <div className="flex gap-2 flex-wrap mb-3">
+              <button
+                onClick={() => setReviewCatTab("all")}
+                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                  reviewCatTab === "all" ? "bg-indigo-500 text-white" : "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20"
+                }`}>
+                Barchasi ({allReviews.length})
+              </button>
+              {categories.map((cat: any) => {
+                const count = allReviews.filter((r: any) => r.skill?.category?.id === cat.categoryId).length
+                if (count === 0) return null
+                return (
+                  <button key={cat.categoryId}
+                    onClick={() => setReviewCatTab(cat.categoryId)}
+                    className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                      reviewCatTab === cat.categoryId ? "bg-indigo-500 text-white" : "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20"
+                    }`}>
+                    {cat.name} ({count})
+                  </button>
+                )
+              })}
+            </div>
 
-                </div>
+            {/* Saralash */}
+            <div className="flex items-center gap-2 flex-wrap mb-4">
+              <ArrowUpDown size={15} style={{ color: "var(--muted)" }} />
+              {SORT_OPTIONS.map(opt => (
+                <button key={opt.value}
+                  onClick={() => setReviewSort(opt.value)}
+                  className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                    reviewSort === opt.value ? "bg-gray-600 text-white" : "hover:bg-[var(--sidebar-hover)]"
+                  }`}
+                  style={reviewSort !== opt.value ? { color: "var(--text-secondary)" } : undefined}>
+                  {opt.label}
+                </button>
               ))}
             </div>
-          </div>
 
-          {provider.portfolio?.length > 0 && (
-            <div className="glass-card p-8">
-              <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--text)" }}>Portfolio</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {provider.portfolio.map((img: Record<string, any>) => (
-                  <div key={img.id} className="aspect-square rounded-xl overflow-hidden relative group" style={{ backgroundColor: "var(--skeleton)" }}>
-                    <img src={`http://localhost:5000${img.imageUrl}`} alt="Portfolio" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                    {img.caption && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 translate-y-full group-hover:translate-y-0 transition-transform">
-                        {img.caption}
-                      </div>
-                    )}
-                  </div>
-                ))}
+            {/* Sharh kartalar */}
+            {filteredReviews.length === 0 ? (
+              <div className="glass-card p-6 text-center" style={{ color: "var(--text-secondary)" }}>
+                Bu bo'limda sharhlar yo'q
               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-8">
-          {provider.categoryStats?.length > 0 && (
-            <div className="glass-card p-8">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2" style={{ color: "var(--text)" }}>
-                <TrendingUp className="text-blue-500" size={24} />
-                Kategoriya Statistikasi
-              </h2>
-              <div className="space-y-6">
-                {provider.categoryStats.map((cat: Record<string, any>) => (
-                  <div key={cat.categoryId} className="space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-bold text-sm" style={{ color: "var(--text)" }}>{cat.name}</h4>
-                        <span className="text-[10px]" style={{ color: "var(--muted)" }}>
-                          {cat.skillsCount} xizmat turi
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        {cat.reviewCount > 0 ? (
-                          <div className="flex items-center gap-1 justify-end text-xs">
-                            <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                            <span style={{ color: "var(--text)" }} className="font-bold">{cat.averageRating}</span>
-                            <span style={{ color: "var(--muted)" }}>({cat.reviewCount} sharh)</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs italic" style={{ color: "var(--muted)" }}>Sharhsiz</span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {cat.reviewCount > 0 && (
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-medium" style={{ color: "var(--muted)" }}>
-                          <span>Ijobiy fikrlar</span>
-                          <span className="text-green-500">{cat.positivePercent}%</span>
-                        </div>
-                        <div className="w-full bg-[var(--sidebar-hover)] h-1.5 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style={{ width: `${cat.positivePercent}%` }} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="glass-card p-8">
-            <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--text)" }}>Mijozlar fikri</h2>
-            {provider.reviews?.length === 0 ? (
-              <p className="italic" style={{ color: "var(--muted)" }}>Hali sharhlar yo'q</p>
             ) : (
-              <div className="space-y-6">
-                {provider.reviews?.map((review: Record<string, any>) => (
-                  <div key={review.id} className="pb-4 last:pb-0" style={{ borderBottom: "1px solid var(--border-strong)" }}>
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="font-bold text-sm" style={{ color: "var(--text)" }}>{review.reviewer?.name}</div>
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} size={12} className={i < review.rating ? "text-yellow-400 fill-yellow-400" : ""} style={{ color: i < review.rating ? undefined : "var(--skeleton)" }} />
-                        ))}
+              <div className="flex flex-col gap-3">
+                {filteredReviews.map((r: any) => (
+                  <div key={r.id} className="glass-card p-4">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex items-center gap-2">
+                        <Avatar name={r.reviewer?.name} avatar={r.reviewer?.avatar} size="sm" />
+                        <div>
+                          <div className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+                            {r.reviewer?.name}
+                          </div>
+                          <div className="text-xs" style={{ color: "var(--muted)" }}>
+                            {r.skill?.name} · {timeAgo(r.createdAt)}
+                          </div>
+                        </div>
                       </div>
+                      <div className="flex-shrink-0">{renderStars(r.rating, 13)}</div>
                     </div>
-                    <div className="text-xs text-blue-500 font-medium mb-1">{review.skill?.name}</div>
-                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{review.comment}</p>
+                    {r.comment && (
+                      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{r.comment}</p>
+                    )}
                   </div>
                 ))}
               </div>
             )}
+          </>
+        )}
+
+        {allReviews.length === 0 && (
+          <div className="glass-card p-8 text-center" style={{ color: "var(--text-secondary)" }}>
+            Hali sharhlar yo'q
           </div>
-        </div>
-      </div>
+        )}
+      </section>
 
-      {/* Order Modal */}
+      {/* ── BUYURTMA MODAL ── */}
       {showOrderModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-center items-center p-4">
-          <div className="glass-modal p-8 max-w-lg w-full relative fade-in">
-            <button onClick={() => setShowOrderModal(false)} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors" style={{ color: "var(--muted)" }}>
-              <X size={22} />
-            </button>
-            <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--text)" }}>Buyurtma berish</h2>
-
-            <form onSubmit={handleOrder} className="space-y-5">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-modal p-6 w-full max-w-md fade-in">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>Buyurtma berish</h2>
+              <button onClick={() => setShowOrderModal(false)}>
+                <X size={20} style={{ color: "var(--muted)" }} />
+              </button>
+            </div>
+            <form onSubmit={handleOrder} className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Xizmat turini tanlang</label>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                  Xizmat turi
+                </label>
                 <select value={selectedSkillId} onChange={e => setSelectedSkillId(e.target.value)}
                   className="glass-input" required>
-                  {provider.providerSkills?.map((ps: Record<string, any>) => (
+                  {provider.providerSkills?.map((ps: any) => (
                     <option key={ps.skillId} value={ps.skillId}>{ps.skill?.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Muammo tavsifi</label>
-                <textarea required rows={3} value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder="Muammoni batafsil tushuntiring..." className="glass-textarea" />
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                  Muammo tavsifi *
+                </label>
+                <textarea required rows={3} value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Muammoni batafsil yozing..."
+                  className="glass-textarea" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Manzil</label>
-                <input type="text" required value={address} onChange={e => setAddress(e.target.value)}
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                  Manzil *
+                </label>
+                <input type="text" required value={address}
+                  onChange={e => setAddress(e.target.value)}
                   placeholder="To'liq manzil" className="glass-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Qulay vaqt (ixtiyoriy)</label>
-                <input type="datetime-local" min={minDateTime} value={preferredDate}
-                  onChange={(e) => setPreferredDate(e.target.value)} className="glass-input" />
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                  Qulay vaqt (ixtiyoriy)
+                </label>
+                <input type="datetime-local" value={preferredDate}
+                  onChange={e => setPreferredDate(e.target.value)}
+                  className="glass-input" />
               </div>
-              <button type="submit" disabled={orderLoading} className="btn-primary w-full py-4 mt-2">
+              <button type="submit" disabled={orderLoading}
+                className="btn-primary py-3 rounded-xl font-bold flex items-center justify-center gap-2">
                 {orderLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                {orderLoading ? "Yuborilmoqda..." : "Buyurtmani tasdiqlash"}
+                {orderLoading ? "Yuborilmoqda..." : "Buyurtmani yuborish"}
               </button>
             </form>
           </div>
         </div>
       )}
     </div>
-  );
+  )
 }

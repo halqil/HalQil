@@ -105,7 +105,21 @@ export const getProviderDetail = async (req: Request, res: Response, next: NextF
         providerSkills: { include: { skill: { include: { category: true } } } },
         districts: true,
         portfolio: true,
-        schedules: true
+        schedules: true,
+        memberOfOrganizations: {
+          where: { status: 'ACTIVE' },
+          include: {
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                logo: true,
+                rating: true,
+                reliability: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -188,16 +202,142 @@ export const getProviderDetail = async (req: Request, res: Response, next: NextF
       };
     });
 
+    const allPriceFrom = provider.providerSkills
+      .filter(ps => ps.priceFrom != null)
+      .map(ps => ps.priceFrom!)
+    const allPriceTo = provider.providerSkills
+      .filter(ps => ps.priceTo != null)
+      .map(ps => ps.priceTo!)
+    const priceRange = {
+      from: allPriceFrom.length > 0 ? Math.min(...allPriceFrom) : null,
+      to: allPriceTo.length > 0 ? Math.max(...allPriceTo) : null
+    }
+
     res.json({ 
       success: true, 
       data: { 
         ...provider, 
         providerSkills: providerSkillsWithStats,
         categoryStats,
-        reviews 
+        reviews,
+        priceRange
       } 
     });
   } catch (error) {
     next(error);
   }
 };
+
+export const getProviderSkillDetail = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id, skillId } = req.params
+
+    const providerSkill = await prisma.providerSkill.findFirst({
+      where: {
+        providerId: id,
+        skillId: skillId,
+        isActive: true
+      },
+      include: {
+        skill: {
+          include: {
+            category: {
+              select: { id: true, name: true, description: true }
+            }
+          }
+        },
+        provider: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                reliability: true,
+                isOnline: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!providerSkill) {
+      return res.status(404).json({ success: false, error: 'Xizmat topilmadi' })
+    }
+
+    const reviews = await prisma.review.findMany({
+      where: {
+        revieweeId: providerSkill.provider.userId,
+        skillId: skillId,
+        fromRole: 'USER'
+      },
+      include: {
+        reviewer: {
+          select: { id: true, name: true, avatar: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    const reviewCount = reviews.length
+    const averageRating = reviewCount > 0
+      ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount).toFixed(1))
+      : 0
+    const positiveCount = reviews.filter(r => r.isPositive).length
+    const positivePercent = reviewCount > 0
+      ? Math.round((positiveCount / reviewCount) * 100)
+      : 0
+
+    const successfulOrders = await prisma.order.count({
+      where: {
+        providerId: id,
+        skillId: skillId,
+        status: 'COMPLETED'
+      }
+    })
+
+    res.json({
+      success: true,
+      data: {
+        id: providerSkill.id,
+        skillId: providerSkill.skillId,
+        providerId: providerSkill.providerId,
+        skill: providerSkill.skill,
+        serviceType: providerSkill.serviceType,
+        priceFrom: providerSkill.priceFrom,
+        priceTo: providerSkill.priceTo,
+        priceNote: providerSkill.priceNote,
+        experienceYears: providerSkill.experienceYears,
+        description: providerSkill.description,
+        provider: {
+          id: providerSkill.provider.id,
+          name: providerSkill.provider.user.name,
+          avatar: providerSkill.provider.user.avatar,
+          reliability: providerSkill.provider.user.reliability,
+          isOnline: providerSkill.provider.user.isOnline
+        },
+        stats: {
+          averageRating,
+          reviewCount,
+          positivePercent,
+          successfulOrders
+        },
+        reviews: reviews.map(r => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          isPositive: r.isPositive,
+          createdAt: r.createdAt,
+          reviewer: {
+            id: r.reviewer.id,
+            name: r.reviewer.name,
+            avatar: r.reviewer.avatar
+          }
+        }))
+      }
+    })
+  } catch (error) {
+    next(error)
+  }
+}
