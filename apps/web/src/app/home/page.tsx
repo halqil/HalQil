@@ -161,6 +161,64 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Faol buyurtmalar */}
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <h2
+            className="text-lg font-semibold flex items-center gap-2"
+            style={{ color: "var(--text)" }}
+          >
+            <Package size={18} />
+            Faol buyurtmalar
+          </h2>
+          <Link href="/orders" className="text-sm text-blue-500 hover:underline flex items-center gap-1">
+            Barchasi <ChevronRight size={14} />
+          </Link>
+        </div>
+
+        {ordersLoading ? (
+          <div className="glass-card p-6 flex items-center gap-3" style={{ color: "var(--text-secondary)" }}>
+            <Loader size={18} className="animate-spin text-blue-500" />
+            <span>Yuklanmoqda...</span>
+          </div>
+        ) : activeOrders.length === 0 ? (
+          <div className="glass-card p-6 text-center" style={{ color: "var(--text-secondary)" }}>
+            Hozircha faol buyurtma yo'q
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {activeOrders.map(order => (
+              <Link
+                key={order.id}
+                href={`/orders/${order.id}`}
+                className="glass-card p-4 flex justify-between items-center hover:scale-[1.01] transition-transform"
+              >
+                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border w-fit ${STATUS_COLORS[order.status] || "bg-gray-500/10 text-gray-600 border-gray-500/20"}`}
+                  >
+                    {STATUS_ICONS[order.status]}
+                    {STATUS_LABELS[order.status] || order.status}
+                  </span>
+                  {order.description && (
+                    <p
+                      className="text-sm line-clamp-1 mt-1"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {order.description}
+                    </p>
+                  )}
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>
+                    {new Date(order.createdAt).toLocaleDateString("uz-UZ")}
+                  </span>
+                </div>
+                <ChevronRight size={18} style={{ color: "var(--muted)" }} className="ml-3 flex-shrink-0" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Xizmatlar */}
       <section>
         <div className="flex justify-between items-center mb-4">
@@ -308,64 +366,6 @@ export default function HomePage() {
                   </div>
                 </div>
                 <ChevronRight size={16} style={{ color: "var(--muted)" }} className="flex-shrink-0" />
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Faol buyurtmalar */}
-      <section>
-        <div className="flex justify-between items-center mb-4">
-          <h2
-            className="text-lg font-semibold flex items-center gap-2"
-            style={{ color: "var(--text)" }}
-          >
-            <Package size={18} />
-            Faol buyurtmalar
-          </h2>
-          <Link href="/orders" className="text-sm text-blue-500 hover:underline flex items-center gap-1">
-            Barchasi <ChevronRight size={14} />
-          </Link>
-        </div>
-
-        {ordersLoading ? (
-          <div className="glass-card p-6 flex items-center gap-3" style={{ color: "var(--text-secondary)" }}>
-            <Loader size={18} className="animate-spin text-blue-500" />
-            <span>Yuklanmoqda...</span>
-          </div>
-        ) : activeOrders.length === 0 ? (
-          <div className="glass-card p-6 text-center" style={{ color: "var(--text-secondary)" }}>
-            Hozircha faol buyurtma yo'q
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {activeOrders.map(order => (
-              <Link
-                key={order.id}
-                href={`/orders/${order.id}`}
-                className="glass-card p-4 flex justify-between items-center hover:scale-[1.01] transition-transform"
-              >
-                <div className="flex flex-col gap-1 flex-1 min-w-0">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border w-fit ${STATUS_COLORS[order.status] || "bg-gray-500/10 text-gray-600 border-gray-500/20"}`}
-                  >
-                    {STATUS_ICONS[order.status]}
-                    {STATUS_LABELS[order.status] || order.status}
-                  </span>
-                  {order.description && (
-                    <p
-                      className="text-sm line-clamp-1 mt-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {order.description}
-                    </p>
-                  )}
-                  <span className="text-xs" style={{ color: "var(--muted)" }}>
-                    {new Date(order.createdAt).toLocaleDateString("uz-UZ")}
-                  </span>
-                </div>
-                <ChevronRight size={18} style={{ color: "var(--muted)" }} className="ml-3 flex-shrink-0" />
               </Link>
             ))}
           </div>

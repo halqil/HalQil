@@ -23,6 +23,20 @@ const recalcUserReliability = async (userId: string) => {
 // ─── Legacy: Reliability Calculator (kept for compatibility) ─────────────────
 const recalcReliability = recalcProviderReliability;
 
+async function updateProviderReliability(providerUserId: string) {
+  const profile = await prisma.providerProfile.findUnique({
+    where: { userId: providerUserId }
+  })
+  if (!profile) return
+  const total = profile.successfulOrders + profile.failedOrders
+  const reliability = total > 0
+    ? Math.round((profile.successfulOrders / total) * 100)
+    : 100
+  await prisma.user.update({
+    where: { id: providerUserId },
+    data: { reliability }
+  })
+}
 
 // ─── Create Order ─────────────────────────────────────────────────────────────
 /**
@@ -144,14 +158,17 @@ export const getOrderDetail = async (req: Request, res: Response, next: NextFunc
     const { id } = req.params;
 
     // Auto-complete if AWAITING_CONFIRMATION and 24h passed
-    const order = await prisma.order.findUnique({ where: { id } });
+    const order = await prisma.order.findUnique({ where: { id }, include: { provider: true } });
     if (order?.status === 'AWAITING_CONFIRMATION' && order.completedAt) {
       const elapsed = Date.now() - order.completedAt.getTime();
       if (elapsed > 24 * 60 * 60 * 1000) {
         await prisma.order.update({ where: { id }, data: { status: 'COMPLETED' } });
-        // Negative reliability impact
-        const provider = await prisma.providerProfile.findUnique({ where: { id: order.providerId } });
-        if (provider) await recalcReliability(provider.userId);
+        const autoProviderUserId = order.provider.userId;
+        await prisma.providerProfile.update({
+          where: { userId: autoProviderUserId },
+          data: { successfulOrders: { increment: 1 } }
+        });
+        await updateProviderReliability(autoProviderUserId);
       }
     }
 
@@ -325,7 +342,7 @@ export const confirmOrder = async (req: Request, res: Response, next: NextFuncti
       return res.status(400).json({ success: false, error: 'action majburiy: CONFIRM yoki DISPUTE' });
     }
 
-    const order = await prisma.order.findUnique({ where: { id } });
+    const order = await prisma.order.findUnique({ where: { id }, include: { provider: true } });
     if (!order || order.status !== 'AWAITING_CONFIRMATION') {
       return res.status(400).json({ success: false, error: 'Buyurtma tasdiq kutmoqda emas' });
     }
@@ -353,31 +370,32 @@ export const confirmOrder = async (req: Request, res: Response, next: NextFuncti
     const newStatus = isSuccess ? 'COMPLETED' : 'FAILED';
     await prisma.order.update({ where: { id }, data: { status: newStatus, autoCompleted: false } });
 
+    const providerUserId = order.provider.userId;
     if (isSuccess) {
-      // Provider: successfulOrders++, reliability
-      if (provider) {
-        const newSuccessful = provider.successfulOrders + 1;
-        await prisma.providerProfile.update({
-          where: { id: order.providerId },
-          data: { successfulOrders: newSuccessful }
-        });
-        await recalcProviderReliability(order.providerId);
-      }
-      // User: successfulOrders++, reliability
-      const u = await prisma.user.findUnique({ where: { id: order.userId }, select: { successfulOrders: true, cancelledOrders: true } });
-      if (u) {
-        await prisma.user.update({ where: { id: order.userId }, data: { successfulOrders: u.successfulOrders + 1 } });
-        await recalcUserReliability(order.userId);
-      }
-      if (provider) await sendNotification(provider.userId, 'Xizmat tasdiqlandi', 'Mijoz xizmatni tasdiqladi. Rahmat!', `/orders/${id}`);
+      await prisma.providerProfile.update({
+        where: { userId: providerUserId },
+        data: { successfulOrders: { increment: 1 } }
+      });
     } else {
-      // UNSUCCESSFUL tasdiq: faqat MY_FAULT bo'lsa provider ta'sir qiladi
-      if (order.unsuccessCategory === 'MY_FAULT' && provider) {
-        const newFailed = provider.failedOrders + 1;
-        await prisma.providerProfile.update({ where: { id: order.providerId }, data: { failedOrders: newFailed } });
-        await recalcProviderReliability(order.providerId);
+      await prisma.providerProfile.update({
+        where: { userId: providerUserId },
+        data: { failedOrders: { increment: 1 } }
+      });
+    }
+    await updateProviderReliability(providerUserId);
+
+    // User: successfulOrders++, reliability
+    const u = await prisma.user.findUnique({ where: { id: order.userId }, select: { successfulOrders: true, cancelledOrders: true } });
+    if (u) {
+      await prisma.user.update({ where: { id: order.userId }, data: { successfulOrders: u.successfulOrders + 1 } });
+      await recalcUserReliability(order.userId);
+    }
+    if (provider) {
+      if (isSuccess) {
+        await sendNotification(provider.userId, 'Xizmat tasdiqlandi', 'Mijoz xizmatni tasdiqladi. Rahmat!', `/orders/${id}`);
+      } else {
+        await sendNotification(provider.userId, 'Buyurtma FAILED deb belgilandi', 'Mijoz buyurtmani tasdiqladi (muvaffaqiyatsiz)', `/orders/${id}`);
       }
-      if (provider) await sendNotification(provider.userId, 'Buyurtma FAILED deb belgilandi', 'Mijoz buyurtmani tasdiqladi (muvaffaqiyatsiz)', `/orders/${id}`);
     }
 
     // Review yaratish
@@ -412,7 +430,7 @@ export const resolveDispute = async (req: Request, res: Response, next: NextFunc
       return res.status(400).json({ success: false, error: 'decision majburiy: PROVIDER_FAULT yoki USER_FAULT' });
     }
 
-    const order = await prisma.order.findUnique({ where: { id } });
+    const order = await prisma.order.findUnique({ where: { id }, include: { provider: true } });
     if (!order || order.status !== 'DISPUTED') {
       return res.status(400).json({ success: false, error: 'Buyurtma DISPUTED holatida emas' });
     }
@@ -430,9 +448,13 @@ export const resolveDispute = async (req: Request, res: Response, next: NextFunc
         where: { id },
         data: { status: 'FAILED', resolvedBy: adminId, resolvedAt: now, resolveNote: note.trim(), resolveDecision: decision }
       });
+      const providerUserId = order.provider.userId;
+      await prisma.providerProfile.update({
+        where: { userId: providerUserId },
+        data: { failedOrders: { increment: 1 } }
+      });
+      await updateProviderReliability(providerUserId);
       if (provider) {
-        await prisma.providerProfile.update({ where: { id: order.providerId }, data: { failedOrders: provider.failedOrders + 1 } });
-        await recalcProviderReliability(order.providerId);
         await sendNotification(provider.userId, 'Admin qaror: Siz aybdor topildingiz', note.trim(), `/orders/${id}`);
       }
       await sendNotification(order.userId, 'Shikoyatingiz ko\'rib chiqildi', 'Provayder aybdor topildi.', `/orders/${id}`);
@@ -441,9 +463,13 @@ export const resolveDispute = async (req: Request, res: Response, next: NextFunc
         where: { id },
         data: { status: 'COMPLETED', resolvedBy: adminId, resolvedAt: now, resolveNote: note.trim(), resolveDecision: decision }
       });
+      const providerUserId = order.provider.userId;
+      await prisma.providerProfile.update({
+        where: { userId: providerUserId },
+        data: { successfulOrders: { increment: 1 } }
+      });
+      await updateProviderReliability(providerUserId);
       if (provider) {
-        await prisma.providerProfile.update({ where: { id: order.providerId }, data: { successfulOrders: provider.successfulOrders + 1 } });
-        await recalcProviderReliability(order.providerId);
         await sendNotification(provider.userId, 'Admin qaror: Shikoyat asossiz', 'Xizmat COMPLETED deb belgilandi.', `/orders/${id}`);
       }
       await sendNotification(order.userId, 'Shikoyatingiz asossiz topildi', note.trim(), `/orders/${id}`);

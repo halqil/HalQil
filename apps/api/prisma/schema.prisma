@@ -181,6 +181,7 @@ model ProviderProfile {
   dailyLimit    Int?           @default(10)
   priceFrom     Int?
   priceTo       Int?
+  rating        Float          @default(0)
   createdAt     DateTime       @default(now())
 
   providerSkills        ProviderSkill[]

@@ -39,7 +39,9 @@ export const getProviders = async (req: Request, res: Response, next: NextFuncti
     }
 
     let orderBy: any = { user: { reliability: 'desc' } }
-    if (sort === 'completed_orders') {
+    if (sort === 'rating') {
+      orderBy = { rating: 'desc' }
+    } else if (sort === 'completed_orders') {
       orderBy = [
         { successfulOrders: 'desc' }
       ]
@@ -69,6 +71,7 @@ export const getProviders = async (req: Request, res: Response, next: NextFuncti
       name: p.user.name,
       avatar: p.user.avatar,
       reliability: p.user.reliability,
+      rating: p.rating,
       service_type: p.serviceType,
       skills: p.providerSkills.map(ps => ({
         id: ps.skill.id,

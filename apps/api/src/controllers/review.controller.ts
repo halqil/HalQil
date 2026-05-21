@@ -54,16 +54,21 @@ export const createReview = async (req: Request, res: Response, next: NextFuncti
       }
     });
 
-    // Update reviewee's reliability/average rating (simplified for now)
-    const allReviews = await prisma.review.findMany({ where: { revieweeId } });
-    const avgRating = allReviews.reduce((acc, r) => acc + r.rating, 0) / allReviews.length;
-    // Assume reliability scales based on ratings (e.g. 5 stars = 100%, 1 star = 20%)
-    const reliability = avgRating * 20;
-
-    await prisma.user.update({
-      where: { id: revieweeId },
-      data: { reliability }
-    });
+    if (fromRole === 'USER') {
+      const providerProfile = await prisma.providerProfile.findUnique({
+        where: { userId: revieweeId }
+      })
+      if (providerProfile) {
+        const avgResult = await prisma.review.aggregate({
+          where: { revieweeId, fromRole: 'USER' },
+          _avg: { rating: true }
+        })
+        await prisma.providerProfile.update({
+          where: { userId: revieweeId },
+          data: { rating: avgResult._avg.rating ?? 0 }
+        })
+      }
+    }
 
     res.status(201).json({ success: true, data: review });
   } catch (error) {

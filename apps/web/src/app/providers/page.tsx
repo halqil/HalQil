@@ -11,6 +11,7 @@ import {
 
 const SORT_OPTIONS = [
   { value: "reliability",      label: "Ishonchlilik" },
+  { value: "rating",           label: "Reyting" },
   { value: "completed_orders", label: "Buyurtmalar" },
   { value: "skills_count",     label: "Xizmatlar soni" },
 ]
@@ -20,6 +21,7 @@ interface Provider {
   name: string
   avatar: string | null
   reliability: number
+  rating: number
   service_type: string
   districts: string[]
   completed_orders: number
@@ -168,6 +170,13 @@ export default function ProvidersPage() {
                     <span className="font-medium">{p.reliability.toFixed(1)}%</span>
                     <span>ishonchlilik</span>
                   </div>
+                  {p.rating > 0 && (
+                    <span className="flex items-center gap-1 text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                      <Star size={11} className="text-yellow-400 fill-yellow-400" />
+                      <span className="font-medium">{p.rating.toFixed(1)}</span>
+                      <span>reyting</span>
+                    </span>
+                  )}
                 </div>
               </div>
 
