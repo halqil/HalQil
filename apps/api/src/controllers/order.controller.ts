@@ -201,7 +201,7 @@ export const acceptOrder = async (req: Request, res: Response, next: NextFunctio
   try {
     const { id } = req.params;
     const { message } = req.body;
-    if (!message) return res.status(400).json({ success: false, error: 'Xabar yozish majburiy' });
+    const acceptMessage = message?.trim() || 'Buyurtmangiz qabul qilindi';
 
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order || order.status !== 'PENDING') {
@@ -209,7 +209,7 @@ export const acceptOrder = async (req: Request, res: Response, next: NextFunctio
     }
     const updated = await prisma.order.update({ where: { id }, data: { status: 'ACCEPTED' } });
     
-    await sendNotification(order.userId, 'Buyurtmangiz qabul qilindi', message);
+    await sendNotification(order.userId, 'Buyurtmangiz qabul qilindi', acceptMessage);
 
     res.json({ success: true, data: updated });
   } catch (error) {

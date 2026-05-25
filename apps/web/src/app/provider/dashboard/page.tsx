@@ -451,8 +451,8 @@ export default function ProviderDashboard() {
                     )}
 
                     {order.status === "CHATTING" && (
-                      <button onClick={() => handleOrderAction(order.id, "complete")} disabled={actionLoading} className="w-full btn-success px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
-                        <CheckCircle size={16} /> Ishni yakunlash
+                      <button onClick={() => router.push(`/orders/${order.id}`)} disabled={actionLoading} className="w-full btn-success px-4 py-2 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                        <CheckCircle size={16} /> Buyurtma sahifasiga o'tish
                       </button>
                     )}
 
