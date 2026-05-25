@@ -199,18 +199,7 @@ export default function ProviderDetailPage() {
 
             {/* Narx va hudud */}
             <div className="flex flex-wrap gap-3 text-sm mb-3">
-              {(provider.priceRange?.from || provider.priceRange?.to) && (
-                <span className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
-                  💰
-                  {provider.priceRange.from
-                    ? `${provider.priceRange.from.toLocaleString()} so'm`
-                    : ""}
-                  {provider.priceRange.from && provider.priceRange.to ? " — " : ""}
-                  {provider.priceRange.to
-                    ? `${provider.priceRange.to.toLocaleString()} so'm`
-                    : ""}
-                </span>
-              )}
+
               {provider.districts?.length > 0 && (
                 <span className="flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
                   <MapPin size={14} className="text-red-400" />
