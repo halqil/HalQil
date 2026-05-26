@@ -10,7 +10,7 @@ import Link from "next/link"
 import Avatar from "@/components/Avatar"
 import {
   Send, MapPin, Clock, FileText, CheckCircle, XCircle,
-  MessageSquare, AlertTriangle, ChevronLeft, Star,
+  MessageSquare, AlertTriangle, ChevronLeft, ChevronRight, Star,
   Loader2, Building, Calendar
 } from "lucide-react"
 
@@ -337,74 +337,204 @@ export default function OrderDetailPage() {
           {/* Asosiy info */}
           <div className="glass-card p-5 flex flex-col gap-4">
 
-            {/* Status */}
-            <div className="flex items-center justify-between">
+            {/* Status va sana */}
+            <div className="flex items-center justify-between gap-2">
               <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${STATUS_COLOR[order.status] || "bg-gray-500/10 text-gray-500"}`}>
                 {STATUS_LABELS[order.status] || order.status}
               </span>
-              <span className="text-xs" style={{ color: "var(--muted)" }}>
-                {new Date(order.createdAt).toLocaleDateString("uz-UZ")}
+              <span className="text-xs flex-shrink-0" style={{ color: "var(--muted)" }}>
+                {new Date(order.createdAt).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" })}
               </span>
             </div>
 
             {/* Xizmat */}
             <div>
-              <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Xizmat</div>
+              <div className="text-xs mb-0.5" style={{ color: "var(--muted)" }}>Xizmat</div>
               <div className="font-bold text-base" style={{ color: "var(--text)" }}>
                 {order.skill?.name}
               </div>
+              {order.skill?.category?.name && (
+                <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                  {order.skill.category.name}
+                </div>
+              )}
             </div>
 
-            {/* Muammo */}
+            {/* Muammo tavsifi */}
             <div>
               <div className="text-xs mb-1 flex items-center gap-1" style={{ color: "var(--muted)" }}>
                 <FileText size={12} /> Muammo tavsifi
               </div>
-              <p className="text-sm p-3 rounded-xl" style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text)" }}>
+              <p className="text-sm p-3 rounded-xl leading-relaxed"
+                style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text)" }}>
                 {order.description}
               </p>
             </div>
 
-            {/* Manzil */}
-            <div className="flex items-start gap-2 text-sm">
-              <MapPin size={15} className="text-red-400 mt-0.5 flex-shrink-0" />
-              <span style={{ color: "var(--text)" }}>{order.address}</span>
+            {/* Manzil, vaqt, tashkilot */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-start gap-2 text-sm">
+                <MapPin size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                <span style={{ color: "var(--text)" }}>{order.address}</span>
+              </div>
+              {order.preferredDate && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock size={14} className="text-blue-400 flex-shrink-0" />
+                  <span style={{ color: "var(--text)" }}>
+                    {new Date(order.preferredDate).toLocaleString("uz-UZ", { dateStyle: "medium", timeStyle: "short" })}
+                  </span>
+                </div>
+              )}
+              {order.organization && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Building size={14} className="text-indigo-400 flex-shrink-0" />
+                  <Link href={`/organizations/${order.organization.id}`}
+                    className="text-indigo-500 hover:underline">
+                    {order.organization.name}
+                  </Link>
+                </div>
+              )}
             </div>
 
-            {/* Qulay vaqt */}
-            {order.preferredDate && (
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar size={15} className="text-blue-400 flex-shrink-0" />
-                <span style={{ color: "var(--text)" }}>
-                  {new Date(order.preferredDate).toLocaleString("uz-UZ", { dateStyle: "medium", timeStyle: "short" })}
-                </span>
+            {/* Ajratuvchi */}
+            <div style={{ borderTop: "1px solid var(--border-strong)" }} />
+
+            {/* Vaqt jadvali */}
+            <div className="flex flex-col gap-2">
+              <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                Vaqt jadvali
               </div>
+
+              <div className="flex flex-col gap-1.5">
+                {/* Yaratildi */}
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                  <span style={{ color: "var(--text-secondary)" }}>Yaratildi:</span>
+                  <span className="font-medium" style={{ color: "var(--text)" }}>
+                    {new Date(order.createdAt).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" })}
+                  </span>
+                </div>
+
+                {/* Qabul qilindi yoki rad etildi */}
+                {["ACCEPTED", "CHATTING", "IN_PROGRESS", "AWAITING_CONFIRMATION",
+                  "COMPLETED", "FAILED", "DISPUTED"].includes(order.status) && order.updatedAt && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                    <span style={{ color: "var(--text-secondary)" }}>Qabul qilindi:</span>
+                    <span className="font-medium" style={{ color: "var(--text)" }}>
+                      {new Date(order.updatedAt).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Tasdiq so'raldi */}
+                {order.awaitingConfirmAt && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" />
+                    <span style={{ color: "var(--text-secondary)" }}>Tasdiq so'raldi:</span>
+                    <span className="font-medium" style={{ color: "var(--text)" }}>
+                      {new Date(order.awaitingConfirmAt).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Yakunlandi */}
+                {order.completedAt && ["COMPLETED", "FAILED"].includes(order.status) && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${order.status === "COMPLETED" ? "bg-emerald-500" : "bg-red-400"}`} />
+                    <span style={{ color: "var(--text-secondary)" }}>Yakunlandi:</span>
+                    <span className="font-medium" style={{ color: "var(--text)" }}>
+                      {new Date(order.completedAt).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Admin hal qildi */}
+                {order.resolvedAt && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />
+                    <span style={{ color: "var(--text-secondary)" }}>Admin qarori:</span>
+                    <span className="font-medium" style={{ color: "var(--text)" }}>
+                      {new Date(order.resolvedAt).toLocaleString("uz-UZ", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sabab bo'limlari */}
+            {(order.cancelReason || order.rejectionReason ||
+              order.disputeReason || order.resolveNote) && (
+              <>
+                <div style={{ borderTop: "1px solid var(--border-strong)" }} />
+                <div className="flex flex-col gap-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                    Sabab
+                  </div>
+
+                  {order.cancelReason && (
+                    <div className="text-xs p-3 rounded-xl"
+                      style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text-secondary)" }}>
+                      <span className="font-semibold block mb-0.5" style={{ color: "var(--text)" }}>
+                        Bekor qilish sababi:
+                      </span>
+                      {order.cancelReason}
+                    </div>
+                  )}
+
+                  {order.rejectionReason && (
+                    <div className="text-xs p-3 rounded-xl"
+                      style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text-secondary)" }}>
+                      <span className="font-semibold block mb-0.5" style={{ color: "var(--text)" }}>
+                        Rad etish sababi:
+                      </span>
+                      {order.rejectionReason}
+                    </div>
+                  )}
+
+                  {order.disputeReason && (
+                    <div className="text-xs p-3 rounded-xl bg-orange-500/5"
+                      style={{ border: "1px solid var(--border-strong)", color: "var(--text-secondary)" }}>
+                      <span className="font-semibold block mb-0.5 text-orange-500">
+                        Shikoyat sababi:
+                      </span>
+                      {order.disputeReason}
+                    </div>
+                  )}
+
+                  {order.resolveNote && (
+                    <div className="text-xs p-3 rounded-xl bg-purple-500/5"
+                      style={{ border: "1px solid var(--border-strong)", color: "var(--text-secondary)" }}>
+                      <span className="font-semibold block mb-0.5 text-purple-500">
+                        Admin qarori ({order.resolveDecision === "PROVIDER_FAULT" ? "Provayder aybdor" : "Shikoyat asossiz"}):
+                      </span>
+                      {order.resolveNote}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
-            {/* Tashkilot */}
-            {order.organization && (
-              <div className="flex items-center gap-2 text-sm">
-                <Building size={15} className="text-indigo-400 flex-shrink-0" />
-                <Link href={`/organizations/${order.organization.id}`}
-                  className="text-indigo-500 hover:underline">
-                  {order.organization.name}
-                </Link>
-              </div>
-            )}
+            {/* Ajratuvchi */}
+            <div style={{ borderTop: "1px solid var(--border-strong)" }} />
 
             {/* Boshqa tomon */}
             {otherParty && (
-              <Link href={otherPartyLink} className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--sidebar-hover)]/80 transition-colors"
+              <Link
+                href={isProvider ? `/users/${order.user?.id}` : `/providers/${order.provider?.id}`}
+                className="flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-blue-500/5"
                 style={{ backgroundColor: "var(--sidebar-hover)" }}>
                 <Avatar name={otherParty.name} avatar={otherParty.avatar} size="sm" />
-                <div className="min-w-0">
+                <div className="flex-1 min-w-0">
                   <div className="text-xs" style={{ color: "var(--muted)" }}>
-                    {isProvider ? "Mijoz (Profilni ko'rish)" : "Provayder (Profilni ko'rish)"}
+                    {isProvider ? "Mijoz" : "Provayder"}
                   </div>
-                  <div className="text-sm font-semibold truncate hover:text-blue-500 transition-colors" style={{ color: "var(--text)" }}>
+                  <div className="text-sm font-semibold truncate hover:text-blue-500 transition-colors"
+                    style={{ color: "var(--text)" }}>
                     {otherParty.name}
                   </div>
                 </div>
+                <ChevronRight size={14} style={{ color: "var(--muted)" }} className="flex-shrink-0" />
               </Link>
             )}
           </div>
