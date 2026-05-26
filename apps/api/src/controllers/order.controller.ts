@@ -204,8 +204,8 @@ export const acceptOrder = async (req: Request, res: Response, next: NextFunctio
     const acceptMessage = message?.trim() || 'Buyurtmangiz qabul qilindi';
 
     const order = await prisma.order.findUnique({ where: { id } });
-    if (!order || order.status !== 'PENDING') {
-      return res.status(400).json({ success: false, error: 'Buyurtma PENDING holatida emas' });
+    if (!order || !['PENDING', 'CHATTING'].includes(order.status)) {
+      return res.status(400).json({ success: false, error: 'Buyurtma qabul qilib bo\'lmaydi' });
     }
     const updated = await prisma.order.update({ where: { id }, data: { status: 'ACCEPTED' } });
     

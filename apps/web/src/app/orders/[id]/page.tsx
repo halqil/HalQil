@@ -510,6 +510,22 @@ export default function OrderDetailPage() {
                 <MessageSquare size={16} /> Chatni boshlash
               </button>
             )}
+            {isProvider && order.status === "CHATTING" && (
+              <>
+                <div className="p-3 rounded-xl text-xs text-center"
+                  style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text-secondary)" }}>
+                  Mijoz bilan muloqot davom etmoqda. Qabul qilsangiz xizmat boshlanadi.
+                </div>
+                <button onClick={() => setShowAccept(true)}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold btn-success flex items-center justify-center gap-2">
+                  <CheckCircle size={16} /> Qabul qilish
+                </button>
+                <button onClick={() => setShowReject(true)}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold btn-danger flex items-center justify-center gap-2">
+                  <XCircle size={16} /> Rad etish
+                </button>
+              </>
+            )}
 
             {/* User tugmalari */}
             {!isProvider && order.status === "PENDING" && (
@@ -582,7 +598,7 @@ export default function OrderDetailPage() {
 
             {/* Chat input */}
             <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border-strong)" }}>
-              {isProvider && CHAT_ACTIVE_STATUSES.includes(order.status) && (
+              {isProvider && ["ACCEPTED", "IN_PROGRESS"].includes(order.status) && (
                 <button onClick={() => { setShowFinish(true); setFinishType(null) }}
                   className="w-full mb-3 py-2.5 rounded-xl text-sm font-bold btn-success flex items-center justify-center gap-2">
                   <CheckCircle size={16} /> Xizmat tugatildi
