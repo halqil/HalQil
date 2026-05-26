@@ -653,7 +653,7 @@ export default function OrderDetailPage() {
             )}
 
             {/* User tugmalari */}
-            {!isProvider && order.status === "PENDING" && (
+            {!isProvider && ["PENDING", "ACCEPTED", "CHATTING"].includes(order.status) && (
               <button onClick={() => setShowCancel(true)}
                 className="w-full py-2.5 rounded-xl text-sm font-bold btn-danger flex items-center justify-center gap-2">
                 <XCircle size={16} /> Bekor qilish
@@ -815,6 +815,31 @@ export default function OrderDetailPage() {
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Bu amalni ortga qaytarib bo'lmaydi.
             </p>
+
+            {order.status === "ACCEPTED" && (
+              <div className="flex items-start gap-2 p-3 rounded-xl text-xs"
+                style={{ backgroundColor: "rgba(234, 179, 8, 0.1)", border: "1px solid rgba(234, 179, 8, 0.3)" }}>
+                <AlertTriangle size={14} className="text-yellow-500 flex-shrink-0 mt-0.5" />
+                <span className="text-yellow-600">
+                  Diqqat! Provayder allaqachon qabul qilgan.
+                  Bekor qilish statistikangizga ta'sir qiladi va
+                  provayderga xabar yuboriladi.
+                </span>
+              </div>
+            )}
+
+            {order.status === "CHATTING" && (
+              <div className="flex items-start gap-2 p-3 rounded-xl text-xs"
+                style={{ backgroundColor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
+                <AlertTriangle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <span className="text-red-600">
+                  Diqqat! Provayder bilan muloqot boshlangan.
+                  Bekor qilish statistikangizga ta'sir qiladi va
+                  provayderga xabar yuboriladi.
+                </span>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
                 Sabab *
