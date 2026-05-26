@@ -504,12 +504,7 @@ export default function OrderDetailPage() {
                 </button>
               </>
             )}
-            {isProvider && order.status === "ACCEPTED" && (
-              <button onClick={handleOpenChat}
-                className="w-full py-2.5 rounded-xl text-sm font-bold btn-primary flex items-center justify-center gap-2">
-                <MessageSquare size={16} /> Chatni boshlash
-              </button>
-            )}
+
             {isProvider && order.status === "CHATTING" && (
               <>
                 <div className="p-3 rounded-xl text-xs text-center"

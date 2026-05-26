@@ -253,7 +253,7 @@ export const rejectOrder = async (req: Request, res: Response, next: NextFunctio
     if (!reason) return res.status(400).json({ success: false, error: 'Rad etish sababi majburiy' });
 
     const order = await prisma.order.findUnique({ where: { id } });
-    if (!order || !['PENDING', 'ACCEPTED'].includes(order.status)) {
+    if (!order || !['PENDING', 'ACCEPTED', 'CHATTING'].includes(order.status)) {
       return res.status(400).json({ success: false, error: 'Buyurtma rad etib bo\'lmaydi' });
     }
 
