@@ -499,44 +499,61 @@ export const cancelOrder = async (req: Request, res: Response, next: NextFunctio
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    const order = await prisma.order.findUnique({ where: { id } });
+    const userId = req.user?.userId;
 
-    if (!order || order.status !== 'PENDING') {
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { provider: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Buyurtma topilmadi' });
+    }
+
+    if (!['PENDING', 'ACCEPTED', 'CHATTING'].includes(order.status)) {
       return res.status(400).json({
         success: false,
-        error: order && order.status !== 'PENDING'
-          ? 'Buyurtmani bekor qilib bo\'lmaydi — provayder allaqachon javob bergan'
-          : 'Buyurtma topilmadi',
+        error: 'Bu holatda buyurtmani bekor qilib bo\'lmaydi',
         code: 'CANNOT_CANCEL'
       });
     }
 
-    await prisma.order.update({ where: { id }, data: { status: 'CANCELLED', cancelReason: reason } });
+    if (order.userId !== userId) {
+      return res.status(403).json({ success: false, error: 'Ruxsat yo\'q' });
+    }
 
-    // User statistikasi: cancelledOrders++, reliability recalc
+    await prisma.order.update({
+      where: { id },
+      data: { status: 'CANCELLED', cancelReason: reason }
+    });
+
     const currentUser = await prisma.user.findUnique({
       where: { id: order.userId },
       select: { successfulOrders: true, cancelledOrders: true }
     });
+
     if (currentUser) {
       const cancelled = currentUser.cancelledOrders + 1;
-      const successful = currentUser.successfulOrders;
-      const total = successful + cancelled;
-      const reliability = total > 0 ? Math.round((successful / total) * 100) : 100;
+      const total = currentUser.successfulOrders + cancelled;
+      const reliability = total > 0
+        ? Math.round((currentUser.successfulOrders / total) * 100)
+        : 100;
       await prisma.user.update({
         where: { id: order.userId },
         data: { cancelledOrders: cancelled, reliability }
       });
     }
 
-    // Provayderga notification
-    const provider = await prisma.providerProfile.findUnique({ where: { id: order.providerId } });
-    if (provider) {
+    if (order.provider) {
+      const cancelMsg = order.status === 'PENDING'
+        ? `Mijoz buyurtmani bekor qildi${reason ? `: ${reason}` : ''}`
+        : `Mijoz buyurtmani bekor qildi (${order.status === 'ACCEPTED' ? 'qabul qilingan' : 'muloqot boshlangan'} holatda)${reason ? `: ${reason}` : ''}`;
+
       await sendNotification(
-        provider.userId,
+        order.provider.userId,
         'Buyurtma bekor qilindi',
-        `Mijoz buyurtmani bekor qildi${reason ? `: ${reason}` : ''}`,
-        '/provider/dashboard'
+        cancelMsg,
+        '/orders'
       );
     }
 
