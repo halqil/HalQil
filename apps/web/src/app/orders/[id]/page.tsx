@@ -116,18 +116,70 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (!order || !CHAT_ACTIVE_STATUSES.includes(order.status)) return
+
+    let socket: any = null
+
     try {
       const token = localStorage.getItem("accessToken")
-      const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000", {
+      socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000", {
         auth: { token },
-        reconnectionAttempts: 3,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
       })
       socketRef.current = socket
-      socket.emit("join_order", { order_id: id })
-      socket.on("new_message", msg => setMessages(prev => [...prev, msg]))
+
+      const joinRoom = () => {
+        socket?.emit("join_order", { order_id: id })
+      }
+
+      socket.on("connect", joinRoom)
+      if (socket.connected) joinRoom()
+
+      socket.on("new_message", (msg: any) => {
+        setMessages(prev => {
+          if (msg.id && prev.some(m => m.id === msg.id)) return prev
+          const hasTempDuplicate = prev.some(
+            m => m._temp && m.content === msg.content && m.senderId === msg.senderId
+          )
+          if (hasTempDuplicate) {
+            return prev.map(m =>
+              (m._temp && m.content === msg.content && m.senderId === msg.senderId)
+                ? msg
+                : m
+            )
+          }
+          return [...prev, msg]
+        })
+      })
+
       socket.on("connect_error", () => {})
-      return () => { socket.disconnect() }
     } catch {}
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await api.get(`/orders/${id}`)
+        if (res.data.success) {
+          const serverMessages: any[] = res.data.data.messages || []
+          setMessages(prev => {
+            const realMessages = prev.filter(m => !m._temp)
+            const realIds = new Set(realMessages.map((m: any) => m.id))
+            const newOnes = serverMessages.filter((m: any) => !realIds.has(m.id))
+            if (newOnes.length === 0) return prev
+            return [
+              ...serverMessages
+            ].sort(
+              (a: any, b: any) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            )
+          })
+        }
+      } catch {}
+    }, 5000)
+
+    return () => {
+      socket?.disconnect()
+      clearInterval(pollInterval)
+    }
   }, [order?.status, id])
 
   useEffect(() => {
@@ -136,9 +188,20 @@ export default function OrderDetailPage() {
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMessage.trim() || !socketRef.current) return
-    socketRef.current.emit("send_message", { order_id: id, content: newMessage, type: "TEXT" })
+    const content = newMessage.trim()
+    if (!content || !socketRef.current) return
+
+    const tempMsg = {
+      _temp: true,
+      senderId: user?.id,
+      content,
+      createdAt: new Date().toISOString(),
+      type: "TEXT",
+    }
+    setMessages(prev => [...prev, tempMsg])
     setNewMessage("")
+
+    socketRef.current.emit("send_message", { order_id: id, content, type: "TEXT" })
   }
 
   const handleAccept = async (e: React.FormEvent) => {
@@ -252,6 +315,9 @@ export default function OrderDetailPage() {
   const isProvider = user?.role === "PROVIDER" && order.provider?.userId === user?.id
   const otherParty = isProvider ? order.user : order.provider?.user
   const chatActive = CHAT_ACTIVE_STATUSES.includes(order.status)
+  const otherPartyLink = isProvider 
+    ? `/users/${otherParty?.id || order?.userId}` 
+    : `/providers/${order?.providerId}`
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6 fade-in">
@@ -328,18 +394,18 @@ export default function OrderDetailPage() {
 
             {/* Boshqa tomon */}
             {otherParty && (
-              <div className="flex items-center gap-3 p-3 rounded-xl"
+              <Link href={otherPartyLink} className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--sidebar-hover)]/80 transition-colors"
                 style={{ backgroundColor: "var(--sidebar-hover)" }}>
                 <Avatar name={otherParty.name} avatar={otherParty.avatar} size="sm" />
                 <div className="min-w-0">
                   <div className="text-xs" style={{ color: "var(--muted)" }}>
-                    {isProvider ? "Mijoz" : "Provayder"}
+                    {isProvider ? "Mijoz (Profilni ko'rish)" : "Provayder (Profilni ko'rish)"}
                   </div>
-                  <div className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>
+                  <div className="text-sm font-semibold truncate hover:text-blue-500 transition-colors" style={{ color: "var(--text)" }}>
                     {otherParty.name}
                   </div>
                 </div>
-              </div>
+              </Link>
             )}
           </div>
 
@@ -471,6 +537,18 @@ export default function OrderDetailPage() {
                   {isProvider ? "Mijoz" : "Provayder"}
                 </div>
               </div>
+              {otherParty && (
+                <Link
+                  href={isProvider
+                    ? `/users/${order.user?.id}`
+                    : `/providers/${order.provider?.id}`
+                  }
+                  className="flex-shrink-0 text-xs px-3 py-1.5 rounded-xl transition-colors hover:bg-blue-500/10 text-blue-500"
+                  style={{ border: "1px solid var(--border-strong)" }}
+                >
+                  Profil
+                </Link>
+              )}
             </div>
 
             {/* Messages */}
