@@ -8,7 +8,7 @@ const recalcProviderReliability = async (providerId: string) => {
   if (!profile) return;
   const total = profile.successfulOrders + profile.failedOrders;
   const reliability = total > 0 ? Math.round((profile.successfulOrders / total) * 100) : 100;
-  await prisma.user.update({ where: { id: profile.userId }, data: { reliability } });
+  await prisma.providerProfile.update({ where: { id: providerId }, data: { reliability } });
 };
 
 // ─── Reliability Helper: User ─────────────────────────────────────────────────
@@ -32,8 +32,8 @@ async function updateProviderReliability(providerUserId: string) {
   const reliability = total > 0
     ? Math.round((profile.successfulOrders / total) * 100)
     : 100
-  await prisma.user.update({
-    where: { id: providerUserId },
+  await prisma.providerProfile.update({
+    where: { userId: providerUserId },
     data: { reliability }
   })
 }

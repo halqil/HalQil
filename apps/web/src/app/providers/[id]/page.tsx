@@ -183,7 +183,7 @@ export default function ProviderDetailPage() {
               </span>
               <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
                 <Shield size={15} className="text-green-500" />
-                <strong style={{ color: "var(--text)" }}>{provider.user?.reliability?.toFixed(0)}%</strong>
+                <strong style={{ color: "var(--text)" }}>{provider.reliability?.toFixed(0)}%</strong>
                 ishonchlilik
               </span>
               <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>

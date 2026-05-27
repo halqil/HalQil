@@ -183,6 +183,7 @@ model ProviderProfile {
   priceFrom     Int?
   priceTo       Int?
   rating        Float          @default(0)
+  reliability   Float          @default(100)
   createdAt     DateTime       @default(now())
 
   providerSkills        ProviderSkill[]

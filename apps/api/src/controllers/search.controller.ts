@@ -38,7 +38,7 @@ export const getProviders = async (req: Request, res: Response, next: NextFuncti
       };
     }
 
-    let orderBy: any = { user: { reliability: 'desc' } }
+    let orderBy: any = { reliability: 'desc' }
     if (sort === 'rating') {
       orderBy = { rating: 'desc' }
     } else if (sort === 'completed_orders') {
@@ -50,7 +50,7 @@ export const getProviders = async (req: Request, res: Response, next: NextFuncti
         { providerSkills: { _count: 'desc' } }
       ]
     } else if (sort === 'reliability') {
-      orderBy = { user: { reliability: 'desc' } }
+      orderBy = { reliability: 'desc' }
     }
 
     const providers = await prisma.providerProfile.findMany({
@@ -70,7 +70,7 @@ export const getProviders = async (req: Request, res: Response, next: NextFuncti
       id: p.id,
       name: p.user.name,
       avatar: p.user.avatar,
-      reliability: p.user.reliability,
+      reliability: p.reliability,
       rating: p.rating,
       service_type: p.serviceType,
       skills: p.providerSkills.map(ps => ({
@@ -314,7 +314,7 @@ export const getProviderSkillDetail = async (req: Request, res: Response, next: 
           id: providerSkill.provider.id,
           name: providerSkill.provider.user.name,
           avatar: providerSkill.provider.user.avatar,
-          reliability: providerSkill.provider.user.reliability,
+          reliability: providerSkill.provider.reliability,
           isOnline: providerSkill.provider.user.isOnline
         },
         stats: {
