@@ -33,6 +33,9 @@
   --toggle-bg: #d1d5db;
   --toggle-active: #3b82f6;
   --skeleton: #e5e7eb;
+  --nav-accent: #34d399;
+  --nav-accent-soft: rgba(52, 211, 153, 0.15);
+  --nav-accent-glow: rgba(52, 211, 153, 0.35);
 }
 
 /* ─── Dark Theme Variables ────────────────────────────────────────────────── */
@@ -62,6 +65,9 @@
   --toggle-bg: #374151;
   --toggle-active: #3b82f6;
   --skeleton: #1e293b;
+  --nav-accent: #34d399;
+  --nav-accent-soft: rgba(52, 211, 153, 0.18);
+  --nav-accent-glow: rgba(52, 211, 153, 0.4);
 }
 
 /* ─── Font Size ───────────────────────────────────────────────────────────── */

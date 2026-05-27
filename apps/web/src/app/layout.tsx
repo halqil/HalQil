@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
+import AppNavigation from "@/components/navigation/AppNavigation";
 import { Toaster } from "react-hot-toast";
 import AuthProvider from "@/components/AuthProvider";
 
@@ -45,7 +45,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <Navbar />
+          <AppNavigation />
           <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </main>

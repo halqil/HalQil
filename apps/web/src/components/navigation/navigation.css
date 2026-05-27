@@ -1,0 +1,572 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   HalQil Navigation System — Premium App-like Navigation
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Accent Tokens ──────────────────────────────────────────────────────── */
+:root {
+  --nav-accent: #34d399;
+  --nav-accent-soft: rgba(52, 211, 153, 0.15);
+  --nav-accent-glow: rgba(52, 211, 153, 0.35);
+  --sidebar-width: 60px;
+}
+
+/* ─── Nav Icon Base ──────────────────────────────────────────────────────── */
+.nav-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              filter 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-icon:hover {
+  color: var(--text);
+  transform: scale(1.12);
+}
+
+.nav-icon--active {
+  color: var(--nav-accent);
+  transform: scale(1.18);
+  filter: drop-shadow(0 0 8px var(--nav-accent-glow));
+}
+
+.nav-icon--active:hover {
+  transform: scale(1.22);
+}
+
+/* ─── Nav Icon Badge ─────────────────────────────────────────────────────── */
+.nav-icon__badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  pointer-events: none;
+  animation: badgePop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESKTOP — Notification (top-left)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.desktop-notif {
+  position: fixed;
+  top: 20px;
+  left: 24px;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.desktop-notif__tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--card-solid);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(-50%) translateX(-4px);
+}
+
+.desktop-notif:hover .desktop-notif__tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESKTOP — Sidebar (right)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.desktop-sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 100vh;
+  width: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  z-index: 40;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.35s ease,
+              backdrop-filter 0.35s ease,
+              box-shadow 0.35s ease;
+}
+
+.desktop-sidebar--pinned {
+  --sidebar-width: 200px;
+  background-color: var(--nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .desktop-sidebar--pinned {
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ─── Sidebar Item ───────────────────────────────────────────────────────── */
+.desktop-sidebar__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 0;
+  justify-content: center;
+}
+
+.desktop-sidebar--pinned .desktop-sidebar__item {
+  justify-content: flex-start;
+  padding-left: 16px;
+  gap: 12px;
+}
+
+/* Clickable sidebar item (Link) */
+.desktop-sidebar__item--link {
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background 0.2s ease;
+}
+
+.desktop-sidebar--pinned .desktop-sidebar__item--link {
+  margin: 0 8px;
+  width: calc(100% - 16px);
+  padding: 8px 12px;
+}
+
+.desktop-sidebar--pinned .desktop-sidebar__item--link:hover {
+  background: var(--sidebar-hover);
+}
+
+/* ─── Sidebar Label (visible when pinned) ────────────────────────────────── */
+.desktop-sidebar__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.25s ease 0.1s, transform 0.25s ease 0.1s;
+  pointer-events: none;
+}
+
+.desktop-sidebar--pinned .desktop-sidebar__label {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Active label color */
+.desktop-sidebar__item--active .desktop-sidebar__label {
+  color: var(--nav-accent);
+  font-weight: 600;
+}
+
+/* ─── Sidebar Tooltip (visible when NOT pinned, on hover) ────────────────── */
+.desktop-sidebar__tooltip {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  background: var(--card-solid);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(-50%) translateX(4px);
+}
+
+.desktop-sidebar:not(.desktop-sidebar--pinned)
+  .desktop-sidebar__item:hover
+  .desktop-sidebar__tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ─── Sidebar Separator ──────────────────────────────────────────────────── */
+.desktop-sidebar__sep {
+  width: 24px;
+  height: 1px;
+  background: var(--border-strong);
+  margin: 6px 0;
+  opacity: 0.6;
+}
+
+.desktop-sidebar--pinned .desktop-sidebar__sep {
+  width: calc(100% - 32px);
+  margin-left: 16px;
+}
+
+/* ─── Sidebar Spacer ─────────────────────────────────────────────────────── */
+.desktop-sidebar__spacer {
+  flex: 1;
+}
+
+/* ─── Sidebar Pin Button ─────────────────────────────────────────────────── */
+.desktop-sidebar__pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.desktop-sidebar__pin:hover {
+  color: var(--text);
+  background: var(--sidebar-hover);
+}
+
+.desktop-sidebar__pin--end {
+  align-self: flex-end;
+  margin-right: 12px;
+}
+
+/* ─── Sidebar Logout Button ──────────────────────────────────────────────── */
+.desktop-sidebar__logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+}
+
+.desktop-sidebar__logout:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+[data-theme="dark"] .desktop-sidebar__logout:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESKTOP — Home Badge (bottom-left)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.desktop-home {
+  position: fixed;
+  bottom: 20px;
+  left: 24px;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desktop-home:hover {
+  transform: scale(1.04);
+}
+
+.desktop-home .nav-icon {
+  color: var(--text-secondary);
+}
+
+.desktop-home--active .nav-icon {
+  color: var(--nav-accent);
+  filter: drop-shadow(0 0 8px var(--nav-accent-glow));
+}
+
+.desktop-home__text {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--nav-accent), #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE — Top Bar
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mobile-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background-color: var(--nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  z-index: 45;
+}
+
+.mobile-top__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-top__right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE — Bottom Bar
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mobile-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 6px);
+  background-color: var(--nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  z-index: 45;
+}
+
+/* ─── Bottom Bar Item ────────────────────────────────────────────────────── */
+.mobile-bottom__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  min-width: 56px;
+}
+
+.mobile-bottom__item .nav-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.mobile-bottom__label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.mobile-bottom__item--active .mobile-bottom__label {
+  color: var(--nav-accent);
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE — More Popup
+   ═══════════════════════════════════════════════════════════════════════════ */
+.more-trigger {
+  position: relative;
+}
+
+.more-popup {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--card-solid);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: var(--shadow-lg);
+  animation: moreSlideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.more-popup__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  padding: 4px 12px;
+  border-radius: 12px;
+  transition: background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.more-popup__item:hover,
+.more-popup__item:active {
+  background: var(--sidebar-hover);
+}
+
+.more-popup__label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.more-popup__item--active .more-popup__label {
+  color: var(--nav-accent);
+}
+
+@keyframes moreSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ─── More overlay ───────────────────────────────────────────────────────── */
+.more-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GUEST — Minimal Nav
+   ═══════════════════════════════════════════════════════════════════════════ */
+.guest-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background-color: var(--nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--nav-border);
+  box-shadow: var(--shadow);
+}
+
+.guest-nav__logo {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--nav-accent), #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+
+.guest-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Content Spacing
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) {
+  body[data-nav="auth"] {
+    padding-right: var(--sidebar-width, 60px);
+  }
+}
+
+@media (max-width: 768px) {
+  body[data-nav="auth"] {
+    padding-top: 56px;
+    padding-bottom: 72px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Menu Icon Rotation
+   ═══════════════════════════════════════════════════════════════════════════ */
+.more-icon-open {
+  transform: rotate(90deg) scale(1.12);
+  color: var(--nav-accent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Hide on specific breakpoints
+   ═══════════════════════════════════════════════════════════════════════════ */
+.desktop-only {
+  display: none;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .desktop-only {
+    display: flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: flex;
+  }
+}
