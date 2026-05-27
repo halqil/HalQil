@@ -178,12 +178,18 @@ export default function ProviderDetailPage() {
             <div className="flex flex-wrap gap-4 text-sm mb-3">
               <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
                 <Star size={15} className="text-yellow-400 fill-yellow-400" />
-                <strong style={{ color: "var(--text)" }}>{provider.rating?.toFixed(1) || "—"}</strong>
+                <strong style={{ color: "var(--text)" }}>
+                  {provider.rating > 0 ? provider.rating.toFixed(1) : "—"}
+                </strong>
                 reyting
               </span>
               <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
                 <Shield size={15} className="text-green-500" />
-                <strong style={{ color: "var(--text)" }}>{provider.reliability?.toFixed(0)}%</strong>
+                <strong style={{ color: "var(--text)" }}>
+                  {(provider.successfulOrders + provider.failedOrders) > 0
+                    ? `${provider.reliability?.toFixed(0)}%`
+                    : "—"}
+                </strong>
                 ishonchlilik
               </span>
               <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
@@ -193,7 +199,9 @@ export default function ProviderDetailPage() {
               </span>
               <span className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
                 <Calendar size={15} className="text-indigo-500" />
-                {new Date(provider.user?.createdAt).getFullYear()} yildan
+                {new Date(provider.createdAt).toLocaleDateString("uz-UZ", {
+                  year: "numeric", month: "long", day: "numeric"
+                })} dan beri provayder
               </span>
             </div>
 
@@ -230,27 +238,6 @@ export default function ProviderDetailPage() {
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{provider.bio}</p>
             )}
           </div>
-
-          {/* Buyurtma tugmasi */}
-          <div className="flex-shrink-0">
-            <button
-              onClick={() => provider.availabilityStatus === "AVAILABLE" && setShowOrderModal(true)}
-              disabled={provider.availabilityStatus !== "AVAILABLE"}
-              className={`px-6 py-3 rounded-xl font-bold text-sm w-full md:w-auto ${
-                provider.availabilityStatus === "AVAILABLE"
-                  ? "btn-primary"
-                  : "opacity-50 cursor-not-allowed"
-              }`}
-              style={provider.availabilityStatus !== "AVAILABLE"
-                ? { backgroundColor: "var(--sidebar-hover)", color: "var(--muted)", boxShadow: "none" }
-                : undefined}>
-              <Send size={16} className="inline mr-2" />
-              Buyurtma berish
-            </button>
-            {provider.availabilityStatus !== "AVAILABLE" && (
-              <p className="text-xs text-center mt-2 text-yellow-600">Hozir band</p>
-            )}
-          </div>
         </div>
       </section>
 
@@ -262,7 +249,7 @@ export default function ProviderDetailPage() {
         </h2>
 
         {/* Kategoriya tablar */}
-        {categories.length > 1 && (
+        {categories.length >= 1 && (
           <div className="flex gap-2 flex-wrap mb-4">
             <button
               onClick={() => setActiveCatTab("all")}
@@ -310,8 +297,10 @@ export default function ProviderDetailPage() {
                 <span className="flex items-center gap-1">
                   <Clock size={11} /> {ps.experienceYears} yil staj
                 </span>
-                {ps.stats?.positivePercent > 0 && (
-                  <span className="flex items-center gap-1 text-green-600">
+                {ps.stats?.reviewCount > 0 && (
+                  <span className={`flex items-center gap-1 ${
+                    ps.stats.positivePercent > 0 ? "text-green-600" : "text-red-500"
+                  }`}>
                     <ThumbsUp size={11} /> {ps.stats.positivePercent}% ijobiy
                   </span>
                 )}

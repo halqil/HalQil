@@ -256,6 +256,18 @@ export const getProviderSkillDetail = async (req: Request, res: Response, next: 
                 reliability: true,
                 isOnline: true
               }
+            },
+            providerSkills: {
+              where: { isActive: true },
+              include: {
+                skill: {
+                  include: {
+                    category: {
+                      select: { id: true, name: true }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -315,7 +327,16 @@ export const getProviderSkillDetail = async (req: Request, res: Response, next: 
           name: providerSkill.provider.user.name,
           avatar: providerSkill.provider.user.avatar,
           reliability: providerSkill.provider.reliability,
-          isOnline: providerSkill.provider.user.isOnline
+          rating: providerSkill.provider.rating,
+          isOnline: providerSkill.provider.user.isOnline,
+          skillsCount: providerSkill.provider.providerSkills.length,
+          categories: Array.from(
+            new Map(
+              providerSkill.provider.providerSkills
+                .filter(ps => ps.skill?.category)
+                .map(ps => [ps.skill.category.id, ps.skill.category.name])
+            ).entries()
+          ).map(([id, name]) => ({ id, name }))
         },
         stats: {
           averageRating,

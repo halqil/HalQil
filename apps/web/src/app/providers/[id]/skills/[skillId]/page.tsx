@@ -168,7 +168,7 @@ export default function SkillDetailPage() {
             </div>
             <div className="glass-card p-3 text-center">
               <div className="text-lg font-bold text-green-600">
-                {data.stats?.positivePercent > 0 ? `${data.stats.positivePercent}%` : "—"}
+                {data.stats?.reviewCount > 0 ? `${data.stats.positivePercent}%` : "—"}
               </div>
               <div className="text-xs" style={{ color: "var(--muted)" }}>Ijobiy</div>
             </div>
@@ -248,21 +248,51 @@ export default function SkillDetailPage() {
           Provayder
         </div>
         <Link href={`/providers/${id}`}
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <Avatar name={data.provider?.name} avatar={data.provider?.avatar} size="md" />
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold truncate" style={{ color: "var(--text)" }}>
-              {data.provider?.name}
+          className="glass-card p-4 flex flex-col gap-3 hover:scale-[1.01] transition-transform group">
+
+          <div className="flex items-center gap-3">
+            <Avatar name={data.provider?.name} avatar={data.provider?.avatar} size="md" />
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold group-hover:text-blue-500 transition-colors truncate"
+                style={{ color: "var(--text)" }}>
+                {data.provider?.name}
+              </div>
+              <div className="flex items-center gap-3 text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                <span className="flex items-center gap-1">
+                  <Shield size={11} className="text-green-500" />
+                  {data.provider?.reliability != null && (data.provider?.successfulOrders + data.provider?.failedOrders) > 0
+                    ? `${data.provider.reliability.toFixed(0)}% ishonchlilik`
+                    : "— ishonchlilik"}
+                </span>
+                {data.provider?.rating > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Star size={11} className="text-yellow-400 fill-yellow-400" />
+                    {data.provider.rating.toFixed(1)}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-              <span className={`w-2 h-2 rounded-full ${data.provider?.isOnline ? "bg-green-500" : "bg-gray-400"}`} />
-              {data.provider?.isOnline ? "Online" : "Offline"}
-              <span style={{ color: "var(--muted)" }}>·</span>
-              <Shield size={11} className="text-green-500" />
-              {data.provider?.reliability?.toFixed(0)}% ishonchlilik
-            </div>
+            <ChevronLeft size={16} className="rotate-180 flex-shrink-0"
+              style={{ color: "var(--muted)" }} />
           </div>
-          <ChevronLeft size={18} className="rotate-180 flex-shrink-0" style={{ color: "var(--muted)" }} />
+
+          {data.provider?.categories?.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <div className="text-xs" style={{ color: "var(--muted)" }}>
+                Kategoriyalar · {data.provider.skillsCount} ta xizmat
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {data.provider.categories.map((cat: any) => (
+                  <span key={cat.id}
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: "var(--sidebar-hover)", color: "var(--text-secondary)" }}>
+                    {cat.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
         </Link>
       </section>
 

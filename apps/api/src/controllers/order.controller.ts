@@ -400,13 +400,28 @@ export const confirmOrder = async (req: Request, res: Response, next: NextFuncti
 
     // Review yaratish
     if (rating && provider) {
-      await prisma.review.create({
-        data: {
-          orderId: id, reviewerId: order.userId, revieweeId: provider.userId,
-          skillId: order.skillId, rating: Number(rating), comment: comment || null,
-          fromRole: 'USER', isPositive: isSuccess
-        }
-      }).catch(() => {});
+      try {
+        await prisma.review.create({
+          data: {
+            orderId: id,
+            reviewerId: order.userId,
+            revieweeId: provider.userId,
+            skillId: order.skillId,
+            rating: Number(rating),
+            comment: comment || null,
+            fromRole: 'USER',
+            isPositive: isSuccess
+          }
+        })
+        const avgResult = await prisma.review.aggregate({
+          where: { revieweeId: provider.userId, fromRole: 'USER' },
+          _avg: { rating: true }
+        })
+        await prisma.providerProfile.update({
+          where: { userId: provider.userId },
+          data: { rating: avgResult._avg.rating ?? 0 }
+        })
+      } catch {}
     }
 
     res.json({ success: true, data: { message: 'Tasdiqlandi!' } });
