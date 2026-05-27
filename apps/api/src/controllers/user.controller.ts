@@ -298,6 +298,9 @@ export const getPublicUser = async (req: Request, res: Response, next: NextFunct
         username: true, walletId: true, avatar: true,
         isOnline: true, lastSeenAt: true, reliability: true,
         successfulOrders: true, cancelledOrders: true, createdAt: true, role: true,
+        providerProfile: {
+          select: { id: true, status: true }
+        },
       },
     });
 
