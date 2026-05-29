@@ -12,6 +12,7 @@ import "./navigation.css";
 type ThemeMode = "light" | "dark" | "system";
 
 export default function AppNavigation() {
+
   const { user, isAuthenticated, setTheme, logout } = useAuthStore();
   const router = useRouter();
 

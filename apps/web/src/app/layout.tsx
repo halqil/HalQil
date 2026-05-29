@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import AppNavigation from "@/components/navigation/AppNavigation";
+import NavWrapper from "@/components/NavWrapper";
 import { Toaster } from "react-hot-toast";
 import AuthProvider from "@/components/AuthProvider";
+import MainWrapper from "@/components/MainWrapper";
 
 export const metadata: Metadata = {
   title: "HalQil - Mahalliy Xizmat Marketplace",
@@ -45,10 +46,8 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <AppNavigation />
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {children}
-          </main>
+          <NavWrapper />
+          <MainWrapper>{children}</MainWrapper>
           <Toaster position="top-center" />
         </AuthProvider>
       </body>

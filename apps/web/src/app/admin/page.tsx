@@ -1,185 +1,326 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import api from "../../lib/api";
-import { useAuthStore } from "../../lib/store";
-import { useRouter } from "next/navigation";
-import { AxiosError } from "axios";
-import toast from "react-hot-toast";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
-  CheckCircle, XCircle, Users, LayoutList, Plus, ChevronDown,
-  ChevronRight, ToggleLeft, ToggleRight, X, Folder, Wrench, Loader2, Building,
-  MessageSquare, Bell, AlertTriangle, User
-} from "lucide-react";
+  Users,
+  Briefcase,
+  ClipboardList,
+  AlertTriangle,
+  ArrowRight,
+  FolderOpen,
+  Bell,
+  Building2,
+  MessageSquare,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import api from '@/lib/api';
+import { timeAgo } from '@/lib/timeAgo';
+import { StatusBadge } from '@/components/admin/shared/StatusBadge';
+import { SkeletonRow } from '@/components/admin/shared/SkeletonRow';
+import { EmptyState } from '@/components/admin/shared/EmptyState';
+import { PageHeader } from '@/components/admin/shared/PageHeader';
 
-import AdminUsers from "../../components/admin/AdminUsers";
-import AdminNotifications from "../../components/admin/AdminNotifications";
-import AdminChat from "../../components/admin/AdminChat";
-import AdminApplications from "../../components/admin/AdminApplications";
-import AdminDisputes from "../../components/admin/AdminDisputes";
-import AdminCategories from "../../components/admin/AdminCategories";
-
-
-interface Skill {
-  id: string;
-  name: string;
-  isActive: boolean;
-  description?: string;
+// ─── Types ───────────────────────────────────────────────────────
+interface StatCard {
+  title: string;
+  value: number;
+  icon: React.ElementType;
+  color: string;
+  bg: string;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  icon?: string;
-  isActive: boolean;
-  skills: Skill[];
+interface RecentApp {
+  _id?: string;
+  id?: string;
+  user?: { name?: string; firstName?: string; lastName?: string };
+  category?: { name?: string };
+  createdAt: string;
+  status: string;
 }
 
-export default function AdminDashboard() {
-  const { user, isAuthenticated } = useAuthStore();
-  const router = useRouter();
+interface RecentDispute {
+  _id?: string;
+  id?: string;
+  user?: { name?: string; firstName?: string; lastName?: string };
+  provider?: { name?: string; firstName?: string; lastName?: string };
+  skillName?: string;
+  createdAt: string;
+  status: string;
+}
 
-  const [activeTab, setActiveTab] = useState("categories");
-  const [orgApplications, setOrgApplications] = useState<Record<string, any>[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [disputes, setDisputes] = useState<Record<string, any>[]>([]);
+// ─── Helpers ─────────────────────────────────────────────────────
+function getName(u?: { name?: string; firstName?: string; lastName?: string }): string {
+  if (!u) return 'Noma`lum';
+  if (u.name) return u.name;
+  return [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Noma`lum';
+}
 
+function getId(item: { _id?: string; id?: string }): string {
+  return item._id || item.id || '';
+}
+
+function extractTotal(res: { data: Record<string, unknown> }): number {
+  const d = res.data;
+  if (d.data && typeof d.data === 'object' && d.data !== null) {
+    const inner = d.data as Record<string, unknown>;
+    if (typeof inner.total === 'number') return inner.total;
+  }
+  if (typeof d.total === 'number') return d.total;
+  return 0;
+}
+
+function extractItems<T>(res: { data: Record<string, unknown> }): T[] {
+  const d = res.data;
+  if (d.data && typeof d.data === 'object' && d.data !== null) {
+    const inner = d.data as Record<string, unknown>;
+    if (Array.isArray(inner.data)) return inner.data as T[];
+    if (Array.isArray(inner)) return inner as T[];
+  }
+  if (Array.isArray(d.data)) return d.data as T[];
+  return [];
+}
+
+// ─── Component ───────────────────────────────────────────────────
+export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<StatCard[]>([
+    { title: 'Foydalanuvchilar', value: 0, icon: Users, color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+    { title: 'Provayderlar', value: 0, icon: Briefcase, color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
+    { title: 'Kutilayotgan arizalar', value: 0, icon: ClipboardList, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    { title: 'Bahsli buyurtmalar', value: 0, icon: AlertTriangle, color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+  ]);
+
+  const [applications, setApplications] = useState<RecentApp[]>([]);
+  const [disputes, setDisputes] = useState<RecentDispute[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingApps, setLoadingApps] = useState(true);
+  const [loadingDisputes, setLoadingDisputes] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) { router.push("/auth/login"); return; }
-    if (user?.role !== "SUPER_ADMIN") { toast.error("Ruxsat etilmagan"); router.push("/"); return; }
-    fetchAll();
-  }, [isAuthenticated, user, router]);
-
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [orgAppsRes, disputesRes] = await Promise.all([
-        api.get("/admin/organizations/applications"),
-        api.get("/admin/orders/disputed", { params: { status: "DISPUTED" } })
-      ]);
-      setOrgApplications(orgAppsRes.data.data);
-      const dData = disputesRes.data.data;
-      setDisputes(dData.orders ?? dData ?? []);
-    } catch (err) {
-      toast.error("Ma'lumotlarni yuklashda xatolik");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const handleOrgApplication = async (id: string, action: "approve" | "reject") => {
-    setActionLoading(id);
-    try {
-      let body = {};
-      if (action === "reject") {
-        const reason = prompt("Rad etish sababini kiriting:");
-        if (!reason) { setActionLoading(null); return; }
-        body = { rejection_note: reason };
+    const loadStats = async () => {
+      try {
+        const [usersRes, providersRes, appsRes, disputesRes] = await Promise.all([
+          api.get('/admin/users', { params: { role: 'USER', limit: 1 } }),
+          api.get('/admin/users', { params: { role: 'PROVIDER', limit: 1 } }),
+          api.get('/admin/applications', { params: { status: 'PENDING', limit: 1 } }),
+          api.get('/admin/orders/disputed', { params: { status: 'DISPUTED', limit: 1 } }),
+        ]);
+        setStats((prev) =>
+          prev.map((card, i) => ({
+            ...card,
+            value: extractTotal([usersRes, providersRes, appsRes, disputesRes][i]),
+          }))
+        );
+      } catch {
+        toast.error('Statistikani yuklashda xatolik');
+      } finally {
+        setLoadingStats(false);
       }
-      const res = await api.post(`/admin/organizations/applications/${id}/${action}`, body);
-      if (res.data.success) {
-        toast.success(`Tashkilot arizasi ${action === "approve" ? "tasdiqlandi" : "rad etildi"}`);
-        fetchAll();
+    };
+
+    const loadApplications = async () => {
+      try {
+        const res = await api.get('/admin/applications', { params: { status: 'PENDING', limit: 5 } });
+        setApplications(extractItems<RecentApp>(res));
+      } catch {
+        toast.error('Arizalarni yuklashda xatolik');
+      } finally {
+        setLoadingApps(false);
       }
-    } catch (err) {
-      const error = err as AxiosError<{ error: string }>;
-      toast.error(error.response?.data?.error || "Xatolik yuz berdi");
-    } finally {
-      setActionLoading(null);
-    }
-  };
+    };
 
+    const loadDisputes = async () => {
+      try {
+        const res = await api.get('/admin/orders/disputed', { params: { status: 'DISPUTED', limit: 5 } });
+        setDisputes(extractItems<RecentDispute>(res));
+      } catch {
+        toast.error('Shikoyatlarni yuklashda xatolik');
+      } finally {
+        setLoadingDisputes(false);
+      }
+    };
 
-
-
-  if (loading) return (
-    <div className="flex justify-center items-center py-20">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500" />
-    </div>
-  );
-
-  const tabs = [
-    { key: "categories",       label: "Kategoriyalar",      icon: <LayoutList size={16} /> },
-    { key: "applications",     label: "Provayder arizalari", icon: <Users size={16} /> },
-    { key: "org_applications", label: `Tashkilot (${orgApplications.filter(a => a.status === "PENDING").length})`, icon: <Building size={16} /> },
-    { key: "disputes",         label: `Shikoyatlar (${disputes.length})`, icon: <AlertTriangle size={16} /> },
-    { key: "users",            label: "Foydalanuvchilar",   icon: <User size={16} /> },
-    { key: "chat",             label: "Chatlar",            icon: <MessageSquare size={16} /> },
-    { key: "notifications",    label: "Xabarnoma",          icon: <Bell size={16} /> },
-  ];
+    loadStats();
+    loadApplications();
+    loadDisputes();
+  }, []);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto fade-in">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-gray-900 to-indigo-900 text-white p-8 rounded-3xl shadow-lg">
-        <h1 className="text-3xl font-bold mb-1">Boshqaruv Paneli</h1>
-        <p className="text-indigo-200 text-sm">Kategoriyalar, xizmatlar va arizalar</p>
-      </div>
+    <div className="fade-in space-y-6">
+      <PageHeader title="Boshqaruv paneli" />
 
-      {/* Tabs */}
-      <div className="glass-tabs flex-wrap">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`glass-tab ${activeTab === tab.key ? "active" : ""}`}
-          >
-            {tab.icon} <span className="hidden md:inline">{tab.label}</span>
-          </button>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((card) => (
+          <div key={card.title} className="glass-card p-5">
+            <div className="flex items-center gap-4">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: card.bg }}
+              >
+                <card.icon size={24} color={card.color} />
+              </div>
+              <div>
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>{card.title}</p>
+                <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+                  {loadingStats ? '\u2014' : card.value.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* CATEGORIES TAB */}
-      {activeTab === "categories" && <AdminCategories />}
+      {/* Mobile Quick Access */}
+      <div className="md:hidden mt-6">
+        <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 12, color: 'var(--text-secondary)' }}>
+          Tezkor kirish
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {[
+            { href: '/admin/categories',    icon: FolderOpen,    label: 'Kategoriyalar', sub: 'CRUD boshqaruv' },
+            { href: '/admin/notifications', icon: Bell,          label: 'Xabarnoma',     sub: 'Yuborish'      },
+            { href: '/admin/organizations', icon: Building2,     label: 'Tashkilotlar',  sub: 'Arizalar'      },
+            { href: '/admin/chats',         icon: MessageSquare, label: 'Chatlar',       sub: 'Admin chatlar' },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="glass-card"
+              style={{
+                display: 'flex', flexDirection: 'column',
+                gap: 6, padding: '12px 14px',
+                textDecoration: 'none', color: 'var(--text)',
+              }}
+            >
+              <item.icon size={20} style={{ color: 'var(--text-secondary)' }} />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 500 }}>{item.label}</p>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{item.sub}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
 
-      {/* ORG APPLICATIONS TAB */}
-      {activeTab === "org_applications" && (
-        <div className="glass-card p-8">
-          <h2 className="text-xl font-bold mb-6" style={{ color: "var(--text)" }}>Tashkilot yaratish arizalari</h2>
-          {orgApplications.length === 0 ? (
-            <p className="text-center py-10" style={{ color: "var(--muted)" }}>Arizalar yo'q</p>
+      {/* Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Applications */}
+        <div className="glass-card p-6 overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+              Oxirgi arizalar
+            </h2>
+            <Link
+              href="/admin/applications"
+              className="flex items-center gap-1 text-sm hover:underline"
+              style={{ color: 'var(--muted)' }}
+            >
+              Barchasi <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {loadingApps ? (
+            <SkeletonRow cols={4} rows={3} />
+          ) : applications.length === 0 ? (
+            <EmptyState icon={ClipboardList} title="Kutilayotgan arizalar topilmadi" />
           ) : (
-            <div className="space-y-4">
-              {orgApplications.map(app => (
-                <div key={app.id} className="glass-card p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <h3 className="font-bold text-lg" style={{ color: "var(--text)" }}>{app.name}</h3>
-                    <p className="text-sm mb-1" style={{ color: "var(--muted)" }}>Ariza beruvchi: {app.provider?.user?.name} ({app.provider?.user?.email})</p>
-                    {app.description && <p className="text-sm mb-2 max-w-lg" style={{ color: "var(--text-secondary)" }}>{app.description}</p>}
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                      app.status === "PENDING" ? "bg-yellow-500/10 text-yellow-600" :
-                      app.status === "APPROVED" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"
-                    }`}>{app.status}</span>
-                  </div>
-                  {app.status === "PENDING" && (
-                    <div className="flex gap-2">
-                      <button onClick={() => handleOrgApplication(app.id, "approve")} disabled={actionLoading === app.id}
-                        className="btn-success text-sm py-2">
-                        <CheckCircle size={16} /> Tasdiqlash
-                      </button>
-                      <button onClick={() => handleOrgApplication(app.id, "reject")} disabled={actionLoading === app.id}
-                        className="btn-danger text-sm py-2">
-                        <XCircle size={16} /> Rad etish
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    {['Ism', 'Kategoriya', 'Sana', 'Holat'].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-3 py-2.5 text-xs font-semibold whitespace-nowrap"
+                        style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {applications.map((app) => (
+                    <tr key={getId(app)}>
+                      <td className="px-3 py-2.5 text-sm whitespace-nowrap" style={{ color: 'var(--text)', borderBottom: '1px solid var(--border)' }}>
+                        {getName(app.user)}
+                      </td>
+                      <td className="px-3 py-2.5 text-sm whitespace-nowrap" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
+                        {app.category?.name ?? '\u2014'}
+                      </td>
+                      <td className="px-3 py-2.5 text-sm whitespace-nowrap" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                        {timeAgo(app.createdAt)}
+                      </td>
+                      <td className="px-3 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+                        <StatusBadge type="application" status={app.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-      )}
 
-      {activeTab === "applications" && <AdminApplications />}
-      {activeTab === "users" && <AdminUsers />}
-      {activeTab === "chat" && <AdminChat />}
-      {activeTab === "notifications" && <AdminNotifications />}
-      {activeTab === "disputes" && <AdminDisputes />}
+        {/* Recent Disputes */}
+        <div className="glass-card p-6 overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+              Oxirgi shikoyatlar
+            </h2>
+            <Link
+              href="/admin/disputes"
+              className="flex items-center gap-1 text-sm hover:underline"
+              style={{ color: 'var(--muted)' }}
+            >
+              Barchasi <ArrowRight size={14} />
+            </Link>
+          </div>
 
-
+          {loadingDisputes ? (
+            <SkeletonRow cols={4} rows={3} />
+          ) : disputes.length === 0 ? (
+            <EmptyState icon={AlertTriangle} title="Bahsli buyurtmalar topilmadi" />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    {['Buyurtma', 'Mijoz', 'Provayder', 'Sana'].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-3 py-2.5 text-xs font-semibold whitespace-nowrap"
+                        style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {disputes.map((d) => (
+                    <tr key={getId(d)}>
+                      <td className="px-3 py-2.5 text-sm font-mono whitespace-nowrap" style={{ color: 'var(--text)', borderBottom: '1px solid var(--border)' }}>
+                        #{getId(d).slice(-8)}
+                      </td>
+                      <td className="px-3 py-2.5 text-sm whitespace-nowrap" style={{ color: 'var(--text)', borderBottom: '1px solid var(--border)' }}>
+                        {getName(d.user)}
+                      </td>
+                      <td className="px-3 py-2.5 text-sm whitespace-nowrap" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
+                        {getName(d.provider)}
+                      </td>
+                      <td className="px-3 py-2.5 text-sm whitespace-nowrap" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                        {timeAgo(d.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
