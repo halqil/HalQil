@@ -16,6 +16,7 @@ type ThemeMode = "light" | "dark" | "system";
 interface DesktopNavProps {
   user: User;
   notificationCount: number;
+  chatUnreadCount: number;
   themeMode: ThemeMode;
   onThemeCycle: () => void;
   onNotificationClick: () => void;
@@ -25,6 +26,7 @@ interface DesktopNavProps {
 export default function DesktopNav({
   user,
   notificationCount,
+  chatUnreadCount,
   themeMode,
   onThemeCycle,
   onNotificationClick,
@@ -142,6 +144,11 @@ export default function DesktopNav({
             >
               <span className={`nav-icon ${active ? "nav-icon--active" : ""}`}>
                 <Icon size={22} />
+                {item.key === "chats" && chatUnreadCount > 0 && (
+                  <span className="nav-icon__badge">
+                    {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
+                  </span>
+                )}
               </span>
               {pinned && (
                 <span className="desktop-sidebar__label">{item.label}</span>

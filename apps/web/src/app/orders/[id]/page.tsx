@@ -1,17 +1,15 @@
 "use client"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import api from "@/lib/api"
 import { useParams, useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/store"
-import { AxiosError } from "axios"
 import toast from "react-hot-toast"
-import { io, Socket } from "socket.io-client"
 import Link from "next/link"
 import Avatar from "@/components/Avatar"
 import {
-  Send, MapPin, Clock, FileText, CheckCircle, XCircle,
+  MapPin, Clock, FileText, CheckCircle, XCircle,
   MessageSquare, AlertTriangle, ChevronLeft, ChevronRight, Star,
-  Loader2, Building, Calendar
+  Loader2, Building
 } from "lucide-react"
 
 const STATUS_LABELS: Record<string, string> = {
@@ -56,10 +54,6 @@ export default function OrderDetailPage() {
 
   const [order, setOrder]     = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [messages, setMessages] = useState<any[]>([])
-  const [newMessage, setNewMessage] = useState("")
-  const socketRef    = useRef<Socket | null>(null)
-  const messagesEnd  = useRef<HTMLDivElement>(null)
 
   // Finish modal
   const [showFinish, setShowFinish]   = useState(false)
@@ -99,7 +93,6 @@ export default function OrderDetailPage() {
       const res = await api.get(`/orders/${id}`)
       if (res.data.success) {
         setOrder(res.data.data)
-        setMessages(res.data.data.messages || [])
       }
     } catch {
       toast.error("Buyurtma topilmadi")
@@ -114,95 +107,7 @@ export default function OrderDetailPage() {
     fetchOrder()
   }, [id, isAuthenticated])
 
-  useEffect(() => {
-    if (!order || !CHAT_ACTIVE_STATUSES.includes(order.status)) return
 
-    let socket: any = null
-
-    try {
-      const token = localStorage.getItem("accessToken")
-      socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000", {
-        auth: { token },
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-      })
-      socketRef.current = socket
-
-      const joinRoom = () => {
-        socket?.emit("join_order", { order_id: id })
-      }
-
-      socket.on("connect", joinRoom)
-      if (socket.connected) joinRoom()
-
-      socket.on("new_message", (msg: any) => {
-        setMessages(prev => {
-          if (msg.id && prev.some(m => m.id === msg.id)) return prev
-          const hasTempDuplicate = prev.some(
-            m => m._temp && m.content === msg.content && m.senderId === msg.senderId
-          )
-          if (hasTempDuplicate) {
-            return prev.map(m =>
-              (m._temp && m.content === msg.content && m.senderId === msg.senderId)
-                ? msg
-                : m
-            )
-          }
-          return [...prev, msg]
-        })
-      })
-
-      socket.on("connect_error", () => {})
-    } catch {}
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const res = await api.get(`/orders/${id}`)
-        if (res.data.success) {
-          const serverMessages: any[] = res.data.data.messages || []
-          setMessages(prev => {
-            const realMessages = prev.filter(m => !m._temp)
-            const realIds = new Set(realMessages.map((m: any) => m.id))
-            const newOnes = serverMessages.filter((m: any) => !realIds.has(m.id))
-            if (newOnes.length === 0) return prev
-            return [
-              ...serverMessages
-            ].sort(
-              (a: any, b: any) =>
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            )
-          })
-        }
-      } catch {}
-    }, 5000)
-
-    return () => {
-      socket?.disconnect()
-      clearInterval(pollInterval)
-    }
-  }, [order?.status, id])
-
-  useEffect(() => {
-    messagesEnd.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  const sendMessage = (e: React.FormEvent) => {
-    e.preventDefault()
-    const content = newMessage.trim()
-    if (!content || !socketRef.current) return
-
-    const tempMsg = {
-      _temp: true,
-      senderId: user?.id,
-      content,
-      createdAt: new Date().toISOString(),
-      type: "TEXT",
-    }
-    setMessages(prev => [...prev, tempMsg])
-    setNewMessage("")
-
-    socketRef.current.emit("send_message", { order_id: id, content, type: "TEXT" })
-  }
 
   const handleAccept = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -249,7 +154,7 @@ export default function OrderDetailPage() {
     try {
       await api.patch(`/orders/${id}/chat`)
       toast.success("Chat ochildi!")
-      fetchOrder()
+      router.push(`/chats/${id}`)
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Xatolik")
     }
@@ -315,7 +220,7 @@ export default function OrderDetailPage() {
   const isProvider = user?.role === "PROVIDER" && order.provider?.userId === user?.id
   const otherParty = isProvider ? order.user : order.provider?.user
   const chatActive = CHAT_ACTIVE_STATUSES.includes(order.status)
-  const otherPartyLink = isProvider 
+  const otherPartyLink = isProvider
     ? `/users/${otherParty?.id || order?.userId}` 
     : `/providers/${order?.providerId}`
 
@@ -662,90 +567,27 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* ── O'ng ustun: Chat ── */}
+        {/* ── O'ng ustun: Chatga o'tish ── */}
         <div className="lg:col-span-2">
-          <div className="glass-card flex flex-col" style={{ height: "70vh" }}>
-
-            {/* Chat header */}
-            <div className="p-4 flex items-center gap-3 flex-shrink-0"
-              style={{ borderBottom: "1px solid var(--border-strong)" }}>
-              {otherParty && <Avatar name={otherParty.name} avatar={otherParty.avatar} size="sm" />}
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm truncate" style={{ color: "var(--text)" }}>
-                  {otherParty?.name || "—"}
-                </div>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>
-                  {isProvider ? "Mijoz" : "Provayder"}
-                </div>
-              </div>
-              {otherParty && (
-                <Link
-                  href={isProvider
-                    ? `/users/${order.user?.id}`
-                    : `/providers/${order.provider?.id}`
-                  }
-                  className="flex-shrink-0 text-xs px-3 py-1.5 rounded-xl transition-colors hover:bg-blue-500/10 text-blue-500"
-                  style={{ border: "1px solid var(--border-strong)" }}
+          <div className="glass-card flex flex-col items-center justify-center gap-4 p-8" style={{ minHeight: "300px" }}>
+            <MessageSquare size={48} className="opacity-30" style={{ color: "var(--muted)" }} />
+            {chatActive ? (
+              <>
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Provayder bilan suhbatni davom ettiring
+                </p>
+                <button
+                  onClick={() => router.push(`/chats/${id}`)}
+                  className="btn-primary px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"
                 >
-                  Profil
-                </Link>
-              )}
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-              {messages.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center gap-2"
-                  style={{ color: "var(--muted)" }}>
-                  <MessageSquare size={40} className="opacity-20" />
-                  <p className="text-sm">Xabarlar yo'q</p>
-                </div>
-              ) : (
-                messages.map((msg, i) => {
-                  const isMe = msg.senderId === user?.id
-                  return (
-                    <div key={i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
-                        isMe ? "bg-blue-600 text-white rounded-tr-sm" : "rounded-tl-sm"
-                      }`} style={!isMe ? { backgroundColor: "var(--sidebar-hover)", color: "var(--text)" } : undefined}>
-                        <p>{msg.content}</p>
-                        <div className={`text-[10px] mt-1 ${isMe ? "text-blue-200" : ""}`}
-                          style={!isMe ? { color: "var(--muted)" } : undefined}>
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-              <div ref={messagesEnd} />
-            </div>
-
-            {/* Chat input */}
-            <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border-strong)" }}>
-              {isProvider && ["ACCEPTED", "IN_PROGRESS"].includes(order.status) && (
-                <button onClick={() => { setShowFinish(true); setFinishType(null) }}
-                  className="w-full mb-3 py-2.5 rounded-xl text-sm font-bold btn-success flex items-center justify-center gap-2">
-                  <CheckCircle size={16} /> Xizmat tugatildi
+                  <MessageSquare size={16} /> Chatga o&apos;tish →
                 </button>
-              )}
-              {chatActive ? (
-                <form onSubmit={sendMessage} className="flex gap-2">
-                  <input type="text" value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
-                    placeholder="Xabar yozing..."
-                    className="flex-1 glass-input" />
-                  <button type="submit" className="btn-primary p-3 rounded-xl">
-                    <Send size={18} />
-                  </button>
-                </form>
-              ) : (
-                <div className="text-center text-sm py-2 rounded-xl"
-                  style={{ color: "var(--text-secondary)", backgroundColor: "var(--sidebar-hover)" }}>
-                  Chat aktiv emas — {STATUS_LABELS[order.status] || order.status}
-                </div>
-              )}
-            </div>
+              </>
+            ) : (
+              <p className="text-sm text-center" style={{ color: "var(--text-secondary)" }}>
+                Chat aktiv emas — {STATUS_LABELS[order.status] || order.status}
+              </p>
+            )}
           </div>
         </div>
       </div>

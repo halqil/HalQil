@@ -415,6 +415,9 @@ model AdminChatMessage {
   senderId  String
   sender    User      @relation("AdminChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
   content   String
+  isRead    Boolean   @default(false)
+  imageUrl  String?
+  type      String    @default("TEXT")   // TEXT | IMAGE
   createdAt DateTime  @default(now())
 }
 

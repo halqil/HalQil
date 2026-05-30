@@ -371,7 +371,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <nav
         className="md:hidden fixed bottom-0 inset-x-0 flex items-center"
         style={{
-          zIndex: 30,
+          zIndex: drawerOpen ? 50 : 30,
           backgroundColor: 'var(--card-solid)',
           borderTop: '1px solid var(--border)',
           paddingBottom: 'env(safe-area-inset-bottom)',
@@ -412,7 +412,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             className="fixed left-0 right-0 md:hidden"
             style={{
               zIndex: 50,
-              bottom: 56,
+              bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
               background: 'var(--card-solid)',
               borderTop: '1px solid var(--border)',
               borderRadius: '16px 16px 0 0',

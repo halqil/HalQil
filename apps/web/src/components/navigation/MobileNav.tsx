@@ -15,6 +15,7 @@ type ThemeMode = "light" | "dark" | "system";
 interface MobileNavProps {
   user: User;
   notificationCount: number;
+  chatUnreadCount: number;
   themeMode: ThemeMode;
   onThemeCycle: () => void;
   onNotificationClick: () => void;
@@ -23,6 +24,7 @@ interface MobileNavProps {
 export default function MobileNav({
   user,
   notificationCount,
+  chatUnreadCount,
   themeMode,
   onThemeCycle,
   onNotificationClick,
@@ -112,6 +114,7 @@ export default function MobileNav({
             >
               <NavIcon
                 icon={<Icon size={20} />}
+                badge={item.key === "chats" ? chatUnreadCount : undefined}
                 isActive={active}
                 ariaLabel={item.label}
               />

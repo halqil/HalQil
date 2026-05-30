@@ -3,6 +3,7 @@ import "./globals.css";
 import NavWrapper from "@/components/NavWrapper";
 import { Toaster } from "react-hot-toast";
 import AuthProvider from "@/components/AuthProvider";
+import SocketProvider from "@/components/SocketProvider";
 import MainWrapper from "@/components/MainWrapper";
 
 export const metadata: Metadata = {
@@ -46,9 +47,11 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <NavWrapper />
-          <MainWrapper>{children}</MainWrapper>
-          <Toaster position="top-center" />
+          <SocketProvider>
+            <NavWrapper />
+            <MainWrapper>{children}</MainWrapper>
+            <Toaster position="top-center" />
+          </SocketProvider>
         </AuthProvider>
       </body>
     </html>

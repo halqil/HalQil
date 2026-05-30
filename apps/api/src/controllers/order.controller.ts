@@ -156,10 +156,38 @@ export const getOrders = async (req: Request, res: Response, next: NextFunction)
 export const getOrderDetail = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const requestUserId = req.user?.userId;
+    const requestUserRole = req.user?.role;
+
+    if (!requestUserId) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
 
     // Auto-complete if AWAITING_CONFIRMATION and 24h passed
     const order = await prisma.order.findUnique({ where: { id }, include: { provider: true } });
-    if (order?.status === 'AWAITING_CONFIRMATION' && order.completedAt) {
+    if (!order) return res.status(404).json({ success: false, error: 'Buyurtma topilmadi' });
+
+    // Check authorization: must be the order user, the assigned provider, or admin
+    let isAuthorized = false;
+    if (requestUserRole === 'SUPER_ADMIN') {
+      isAuthorized = true;
+    } else if (order.userId === requestUserId) {
+      isAuthorized = true;
+    } else {
+      const providerProfile = await prisma.providerProfile.findUnique({
+        where: { userId: requestUserId },
+        select: { id: true }
+      });
+      if (providerProfile && order.providerId === providerProfile.id) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, error: 'Ruxsat yo\'q' });
+    }
+
+    if (order.status === 'AWAITING_CONFIRMATION' && order.completedAt) {
       const elapsed = Date.now() - order.completedAt.getTime();
       if (elapsed > 24 * 60 * 60 * 1000) {
         await prisma.order.update({ where: { id }, data: { status: 'COMPLETED' } });
@@ -184,7 +212,6 @@ export const getOrderDetail = async (req: Request, res: Response, next: NextFunc
       }
     });
 
-    if (!fresh) return res.status(404).json({ success: false, error: 'Buyurtma topilmadi' });
     res.json({ success: true, data: fresh });
   } catch (error) {
     next(error);

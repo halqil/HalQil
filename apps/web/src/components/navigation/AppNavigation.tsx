@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "../../lib/store";
 import api from "../../lib/api";
 import DesktopNav from "./DesktopNav";
 import MobileNav from "./MobileNav";
+import { useSocket } from "@/components/SocketProvider";
 import "./navigation.css";
 
 type ThemeMode = "light" | "dark" | "system";
@@ -48,7 +49,12 @@ export default function AppNavigation() {
 
   /* ─── Notification count + socket ──────────────────────────────────── */
   const [unreadCount, setUnreadCount] = useState(0);
-  const socketRef = useRef<any>(null);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  const pathname = usePathname();
+
+  // Global socketdan foydalanamiz (SocketProvider orqali)
+  const { socket } = useSocket();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -59,28 +65,64 @@ export default function AppNavigation() {
         if (res.data.success) setUnreadCount(res.data.unreadCount || 0);
       })
       .catch(() => {});
-
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      import("socket.io-client").then(({ io }) => {
-        const socket = io(
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000",
-          { auth: { token } }
-        );
-        socketRef.current = socket;
-        socket.on("new_notification", () =>
-          setUnreadCount((prev) => prev + 1)
-        );
-      });
-    }
-
-    return () => {
-      socketRef.current?.disconnect();
-      socketRef.current = null;
-    };
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = () => setUnreadCount((prev) => prev + 1);
+    socket.on("new_notification", handler);
+
+    return () => {
+      socket.off("new_notification", handler);
+    };
+  }, [socket]);
+
   const handleNotificationClick = () => setUnreadCount(0);
+
+  /* ─── Chat unread count logic ───────────────────────────────────────── */
+  // Fetch total unread count from database on mount, auth change, or pathname transition
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    api
+      .get("/chats")
+      .then((res) => {
+        if (res.data.success) {
+          const totalUnread = res.data.data.reduce(
+            (sum: number, chat: any) => sum + (chat.unreadCount || 0),
+            0
+          );
+          setChatUnreadCount(totalUnread);
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated, pathname]);
+
+  // Listen to incoming real-time inbox updates to increment unread count dynamically
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleInboxUpdate = (payload: any) => {
+      // Extract activeOrderId from current pathname
+      const parts = pathname?.split("/") || [];
+      const activeOrderId = parts.length > 2 && parts[1] === "chats" ? parts[2] : undefined;
+
+      const isChatActive = activeOrderId === payload.orderId;
+      const isFromMe = payload.senderId === user?.id;
+
+      // Only increment if we aren't viewing the chat and it wasn't sent by us
+      if (!isChatActive && !isFromMe) {
+        setChatUnreadCount((prev) => prev + 1);
+      }
+    };
+
+    socket.on("inbox_update", handleInboxUpdate);
+
+    return () => {
+      socket.off("inbox_update", handleInboxUpdate);
+    };
+  }, [socket, pathname, user?.id]);
 
   /* ─── Body data attribute for content spacing ──────────────────────── */
   useEffect(() => {
@@ -124,6 +166,7 @@ export default function AppNavigation() {
   const sharedProps = {
     user,
     notificationCount: unreadCount,
+    chatUnreadCount,
     themeMode,
     onThemeCycle: handleThemeCycle,
     onNotificationClick: handleNotificationClick,

@@ -1144,16 +1144,43 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
  */
 export const getAdminChats = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const adminId = req.user?.userId;
+    const adminId = req.user?.userId as string;
     const chats = await prisma.adminChat.findMany({
       include: {
-        targetUser: { select: { id: true, name: true, avatar: true, email: true, username: true, walletId: true, role: true, isOnline: true } },
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-        _count: { select: { messages: true } }
+        targetUser: { select: { id: true, name: true, avatar: true, isOnline: true } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 }
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json({ success: true, data: chats });
+
+    const mappedChats = await Promise.all(
+      chats.map(async (chat) => {
+        const lastMessage = chat.messages[0] || null;
+        const lastMessageAt = lastMessage ? lastMessage.createdAt : chat.createdAt;
+        const unreadCount = await prisma.adminChatMessage.count({
+          where: {
+            chatId: chat.id,
+            isRead: false,
+            senderId: { not: adminId }
+          }
+        });
+
+        return {
+          id: chat.id,
+          targetUser: {
+            id: chat.targetUser.id,
+            name: chat.targetUser.name,
+            avatar: chat.targetUser.avatar,
+            isOnline: chat.targetUser.isOnline
+          },
+          lastMessage,
+          lastMessageAt,
+          unreadCount
+        };
+      })
+    );
+
+    res.json({ success: true, data: mappedChats });
   } catch (error) {
     next(error);
   }
@@ -1222,13 +1249,28 @@ export const createAdminChat = async (req: Request, res: Response, next: NextFun
 export const getAdminChatMessages = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const messages = await prisma.adminChatMessage.findMany({
+    const { cursor, limit = '30' } = req.query;
+    const take = parseInt(limit as string) || 30;
+
+    const queryOptions: any = {
       where: { chatId: id },
+      take: take,
+      orderBy: { createdAt: 'desc' },
       include: {
         sender: { select: { id: true, name: true, avatar: true, role: true } }
-      },
-      orderBy: { createdAt: 'asc' }
-    });
+      }
+    };
+
+    if (cursor) {
+      queryOptions.cursor = { id: cursor as string };
+      queryOptions.skip = 1;
+    }
+
+    const messages = await prisma.adminChatMessage.findMany(queryOptions);
+
+    // Order was 'desc', reverse to return 'asc'
+    messages.reverse();
+
     res.json({ success: true, data: messages });
   } catch (error) {
     next(error);

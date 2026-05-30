@@ -34,6 +34,7 @@ import organizationRoutes from './routes/organization.routes';
 import notificationRoutes from './routes/notification.routes';
 import adminChatRoutes from './routes/adminChat.routes';
 import supportRoutes from './routes/support.routes';
+import chatRoutes from './routes/chat.routes';
 
 // Routes
 app.use('/auth', authRoutes);
@@ -48,6 +49,7 @@ app.use('/organizations', organizationRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/my/admin-chat', adminChatRoutes);
 app.use('/support', supportRoutes);
+app.use('/chats', chatRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Mahalliy Xizmat Marketplace API is running...');
@@ -109,6 +111,28 @@ io.on('connection', async (socket) => {
         include: { sender: { select: { name: true, avatar: true } } }
       });
       io.to(`order_${order_id}`).emit('new_message', message);
+
+      // ─── inbox_update: ikkala tomonning user room iga ───────
+      try {
+        const order = await prisma.order.findUnique({
+          where: { id: order_id },
+          select: {
+            userId: true,
+            provider: { select: { userId: true } }
+          }
+        });
+        if (order) {
+          const inboxPayload = {
+            orderId: order_id,
+            lastMessage: { content, type: type || 'TEXT', createdAt: message.createdAt, senderId: user.userId },
+            senderId: user.userId
+          };
+          io.to(`user_${order.userId}`).emit('inbox_update', inboxPayload);
+          io.to(`user_${order.provider.userId}`).emit('inbox_update', inboxPayload);
+        }
+      } catch (e) {
+        console.error('Error emitting inbox_update', e);
+      }
     } catch (error) {
       console.error('Error saving message', error);
     }
@@ -121,6 +145,44 @@ io.on('connection', async (socket) => {
         data: { isRead: true }
       });
     } catch (error) {}
+  });
+
+  // ─── ADMIN CHAT EVENTS ─────────────────────────────────────────────────────
+  socket.on('join_admin_chat', async ({ chatId }) => {
+    socket.join(`admin_chat_${chatId}`);
+    console.log(`User ${user.userId} joined admin chat room admin_chat_${chatId}`);
+  });
+
+  socket.on('admin_chat_message', async ({ chatId, content, type, imageUrl }) => {
+    try {
+      const message = await prisma.adminChatMessage.create({
+        data: {
+          chatId,
+          senderId: user.userId,
+          content,
+          type: type || 'TEXT',
+          imageUrl: imageUrl || null
+        },
+        include: {
+          sender: { select: { id: true, name: true, avatar: true, role: true } }
+        }
+      });
+      io.to(`admin_chat_${chatId}`).emit('new_admin_message', message);
+    } catch (error) {
+      console.error('Error saving admin message', error);
+    }
+  });
+
+  socket.on('mark_read', async ({ chatId }) => {
+    try {
+      await prisma.adminChatMessage.updateMany({
+        where: { chatId, senderId: { not: user.userId }, isRead: false },
+        data: { isRead: true }
+      });
+      io.to(`admin_chat_${chatId}`).emit('messages_read', { chatId });
+    } catch (error) {
+      console.error('Error marking admin messages as read', error);
+    }
   });
 
   socket.on('disconnect', async () => {
