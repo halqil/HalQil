@@ -51,6 +51,11 @@ app.use('/my/admin-chat', adminChatRoutes);
 app.use('/support', supportRoutes);
 app.use('/chats', chatRoutes);
 
+// Health check endpoint — cron job keep-alive (Render free tier uxlab qolmasligi uchun)
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.get('/', (req: Request, res: Response) => {
   res.send('Mahalliy Xizmat Marketplace API is running...');
 });
