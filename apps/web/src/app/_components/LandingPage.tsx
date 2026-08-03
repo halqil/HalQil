@@ -37,6 +37,10 @@ import {
   Phone,
   AtSign,
   Send as TelegramIcon,
+  Target,
+  AlertTriangle,
+  CheckCircle,
+  Eye,
 } from "lucide-react";
 import "../landing.css";
 
@@ -103,16 +107,20 @@ export default function LandingPage() {
           </p>
 
           {/* Search bar */}
-          <div className="landing-hero__search">
+          <form
+            className="landing-hero__search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              window.location.href = "/providers";
+            }}
+          >
             <Search className="landing-hero__search-icon" size={20} />
             <input
               type="text"
               placeholder="Qanday xizmat kerak? (masalan, kran ta'mirlash)"
               className="landing-hero__search-input"
-              readOnly
-              onClick={() => (window.location.href = "/providers")}
             />
-          </div>
+          </form>
 
           {/* CTA buttons */}
           <div className="landing-hero__ctas">
@@ -177,6 +185,121 @@ export default function LandingPage() {
               <div className="landing-stat-card__label">{stat.label}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ==============================================================
+          NEGA HALQIL?
+          ============================================================== */}
+      <section className="landing-section" style={{ background: "var(--bg-secondary)" }}>
+        <div className="landing-section__inner">
+          <div className="reveal" style={{ textAlign: "center" }}>
+            <div className="landing-section__label" style={{ justifyContent: "center" }}>
+              <Target size={14} />
+              Bizning maqsadimiz
+            </div>
+            <h2 className="landing-section__title">
+              Nega HalQil yaratilgan?
+            </h2>
+            <p className="landing-section__desc" style={{ margin: "0 auto" }}>
+              O'zbekistonda sifatli xizmat topish va ko'rsatish jarayonini tubdan o'zgartirish uchun.
+            </p>
+          </div>
+
+          {/* Vision statement */}
+          <div className="landing-why__vision reveal reveal-delay-1">
+            <Eye size={24} />
+            <p>
+              O'zbekistonda va kelajakda O'rta Osiyo bozorida har qanday maishiy, ofis va professional xizmatlarni tez, xavfsiz va shaffof narxlarda
+              <strong> &ldquo;Hal Qiladigan&rdquo; </strong>
+              yagona va eng yirik raqamli ekotizimga aylanish.
+            </p>
+          </div>
+
+          {/* Two-column: Problems & Solutions */}
+          <div className="landing-why__grid">
+            {/* Mijozlar */}
+            <div className="landing-why__card reveal reveal-delay-2">
+              <div className="landing-why__card-header">
+                <div className="landing-why__card-icon" style={{ background: "rgba(59, 130, 246, 0.1)", color: "#3b82f6" }}>
+                  <Users size={22} />
+                </div>
+                <h3 className="landing-why__card-title">Mijozlar muammosi</h3>
+              </div>
+              <ul className="landing-why__list">
+                {[
+                  {
+                    problem: "Sifatli va ishonchli usta topish qiyinligi",
+                    solution: "100% PINFL verifikatsiyalangan usta profillari",
+                  },
+                  {
+                    problem: "Narxlarning sun'iy oshirilishi",
+                    solution: "Shaffof narxlar va bozor o'rtachasi ko'rsatkichi",
+                  },
+                  {
+                    problem: "To'lov va xavfsizlik kafolati yo'qligi",
+                    solution: "Escrow to'lov tizimi — pul xizmat tugaguncha saqlanadi",
+                  },
+                  {
+                    problem: "Qidirish uzoq va noqulay",
+                    solution: "AI multimodal qidiruv — matn, ovoz, rasm bilan toping",
+                  },
+                ].map((item, i) => (
+                  <li key={i} className="landing-why__item">
+                    <div className="landing-why__problem">
+                      <AlertTriangle size={14} />
+                      <span>{item.problem}</span>
+                    </div>
+                    <div className="landing-why__solution">
+                      <CheckCircle size={14} />
+                      <span>{item.solution}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Provayderlar */}
+            <div className="landing-why__card reveal reveal-delay-3">
+              <div className="landing-why__card-header">
+                <div className="landing-why__card-icon" style={{ background: "rgba(139, 92, 246, 0.1)", color: "#8b5cf6" }}>
+                  <Wrench size={22} />
+                </div>
+                <h3 className="landing-why__card-title">Provayderlar muammosi</h3>
+              </div>
+              <ul className="landing-why__list">
+                {[
+                  {
+                    problem: "Mijozlar oqimining beqarorligi",
+                    solution: "Tayyor va uzluksiz mijozlar oqimi platformadan",
+                  },
+                  {
+                    problem: "Raqamli portfolio va reyting yo'qligi",
+                    solution: "Galeriya portfolio va ishonchlilik ko'rsatkichi",
+                  },
+                  {
+                    problem: "Nizo yuzaga kelganda himoya yo'q",
+                    solution: "Adolatli nizo hal qilish tizimi va mediatsiya",
+                  },
+                  {
+                    problem: "Yangi mijozlarga o'zini tanishtirish qiyin",
+                    solution: "AI-tavsiya tizimi profilni avtomatik taqdim etadi",
+                  },
+                ].map((item, i) => (
+                  <li key={i} className="landing-why__item">
+                    <div className="landing-why__problem">
+                      <AlertTriangle size={14} />
+                      <span>{item.problem}</span>
+                    </div>
+                    <div className="landing-why__solution">
+                      <CheckCircle size={14} />
+                      <span>{item.solution}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 

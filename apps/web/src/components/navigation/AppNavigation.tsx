@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { Sun, Moon, Monitor } from "lucide-react";
 import { useAuthStore } from "../../lib/store";
 import api from "../../lib/api";
 import DesktopNav from "./DesktopNav";
@@ -138,12 +139,36 @@ export default function AppNavigation() {
 
   /* ─── Guest nav ────────────────────────────────────────────────────── */
   if (!isAuthenticated) {
+    const guestThemeIcon = () => {
+      switch (themeMode) {
+        case "light": return <Sun size={18} />;
+        case "dark": return <Moon size={18} />;
+        case "system": return <Monitor size={18} />;
+      }
+    };
+
+    const guestThemeLabel = () => {
+      switch (themeMode) {
+        case "light": return "Yorug' rejim";
+        case "dark": return "Qorong'u rejim";
+        case "system": return "Tizim rejimi";
+      }
+    };
+
     return (
       <nav className="guest-nav">
         <Link href="/" className="guest-nav__logo">
           HalQil
         </Link>
         <div className="guest-nav__actions">
+          <button
+            onClick={handleThemeCycle}
+            className="guest-nav__theme-btn"
+            aria-label={guestThemeLabel()}
+            title={guestThemeLabel()}
+          >
+            {guestThemeIcon()}
+          </button>
           <Link href="/auth/login" className="btn-ghost text-sm">
             Kirish
           </Link>
