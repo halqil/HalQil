@@ -74,7 +74,7 @@ export default function MessageInput({
       // Reset input value so same file can be picked again if deleted
       e.target.value = "";
 
-      const res = await api.post("/chats/upload", formData, {
+      const res = await api.post("/chat/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 

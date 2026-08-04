@@ -64,8 +64,8 @@ export const applyForProvider = async (req: Request, res: Response, next: NextFu
         if (!s.description || s.description.trim().length < 20) {
           return res.status(400).json({ success: false, error: `Skill tavsifi kamida 20 belgi bo'lishi kerak` });
         }
-        if (!['ORGANIZED', 'UNORGANIZED', 'BOTH'].includes(s.serviceType)) {
-          return res.status(400).json({ success: false, error: 'serviceType: ORGANIZED | UNORGANIZED | BOTH' });
+        if (!['ORGANIZED', 'UNORGANIZED', 'BOTH', 'INDEPENDENT'].includes(s.workMode)) {
+          return res.status(400).json({ success: false, error: 'workMode noto\'g\'ri' });
         }
         const expYears = Number(s.experienceYears);
         if (isNaN(expYears) || expYears < 0.5 || expYears > 50) {
@@ -107,7 +107,7 @@ export const applyForProvider = async (req: Request, res: Response, next: NextFu
           skills: skills && Array.isArray(skills) && skills.length > 0 ? {
             create: skills.map((s: any) => ({
               skillId: s.skillId,
-              serviceType: s.serviceType,
+              workMode: s.workMode,
               experienceYears: Number(s.experienceYears),
               priceFrom: s.priceFrom ? Number(s.priceFrom) : null,
               priceTo: s.priceTo ? Number(s.priceTo) : null,
@@ -639,6 +639,8 @@ export const updateProviderSettings = async (req: Request, res: Response, next: 
       if (dailyLimit !== undefined) data.dailyLimit = Number(dailyLimit);
       if (priceFrom !== undefined) data.priceFrom = Number(priceFrom);
       if (priceTo !== undefined) data.priceTo = Number(priceTo);
+      // Let's add workMode update as well if provided
+      if (req.body.workMode) data.workMode = req.body.workMode;
 
       const updated = await tx.providerProfile.update({
         where: { userId },

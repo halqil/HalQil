@@ -60,7 +60,7 @@ export function ChatList({ activeOrderId }: ChatListProps) {
   const fetchChats = useCallback(async (catId: string) => {
     try {
       setLoading(true);
-      const url = catId ? `/chats?categoryId=${catId}` : "/chats";
+      const url = catId ? `/chat?categoryId=${catId}` : "/chat";
       const res = await api.get(url);
       if (res.data.success) {
         setChats(res.data.data);
@@ -177,7 +177,7 @@ export function ChatList({ activeOrderId }: ChatListProps) {
               key={chat.orderId}
               chat={chat}
               isActive={activeOrderId === chat.orderId}
-              onClick={() => router.push(`/chats/${chat.orderId}`)}
+              onClick={() => router.push(`/chat/${chat.orderId}`)}
             />
           ))
         )}

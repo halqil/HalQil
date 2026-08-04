@@ -105,9 +105,9 @@ export default function HomePage() {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) {
-      router.push('/providers')
+      router.push('/search')
     } else {
-      router.push('/providers?q=' + encodeURIComponent(searchQuery.trim()))
+      router.push('/search?q=' + encodeURIComponent(searchQuery.trim()))
     }
   }
 
@@ -152,7 +152,7 @@ export default function HomePage() {
           {["Santexnik", "Elektrik", "Farrosh", "Usta", "Sartarosh"].map(tag => (
             <Link
               key={tag}
-              href={`/providers?q=${tag}`}
+              href={`/search?q=${tag}`}
               className="px-3 py-1.5 rounded-full text-sm bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors"
             >
               {tag}
@@ -226,7 +226,7 @@ export default function HomePage() {
             <Layers size={18} />
             Xizmatlar
           </h2>
-          <Link href="/services" className="text-sm text-blue-500 hover:underline flex items-center gap-1">
+          <Link href="/catalog" className="text-sm text-blue-500 hover:underline flex items-center gap-1">
             Barchasi <ChevronRight size={14} />
           </Link>
         </div>
@@ -239,7 +239,7 @@ export default function HomePage() {
             {categories.map(cat => (
               <Link
                 key={cat.id}
-                href={`/services/${cat.id}`}
+                href={`/catalog/${cat.slug}`}
                 className="glass-card p-4 flex flex-col gap-2 hover:scale-[1.02] transition-transform group"
               >
                 <span className="font-semibold text-sm group-hover:text-blue-500 transition-colors" style={{ color: "var(--text)" }}>
@@ -248,7 +248,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-3 text-xs" style={{ color: "var(--muted)" }}>
                   <span className="flex items-center gap-1">
                     <Layers size={11} />
-                    {cat._count?.skills ?? cat.skills?.length ?? 0}
+                    {cat.skillsCount ?? cat._count?.skills ?? cat.skills?.length ?? 0}
                   </span>
                   <span className="flex items-center gap-1">
                     <Users size={11} />

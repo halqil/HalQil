@@ -22,7 +22,7 @@ enum UserStatus {
   DELETED
 }
 
-enum ServiceType {
+enum WorkMode {
   ORGANIZED
   UNORGANIZED
   BOTH
@@ -141,6 +141,7 @@ model User {
 model Category {
   id          String   @id @default(uuid())
   name        String   @unique
+  slug        String   @unique @default(uuid())
   description String?
   icon        String?
   isActive    Boolean  @default(true)
@@ -154,6 +155,7 @@ model Skill {
   id          String   @id @default(uuid())
   categoryId  String
   category    Category @relation(fields: [categoryId], references: [id])
+  slug        String   @default(uuid())
   name        String
   description String?
   isActive    Boolean  @default(true)
@@ -164,6 +166,28 @@ model Skill {
   reviews               Review[]
   organizationSkills    OrganizationSkill[]
   applicationSkills     ProviderApplicationSkill[]
+  serviceTypes          ServiceType[]
+
+  @@unique([categoryId, slug])
+}
+
+model ServiceType {
+  id                     String   @id @default(uuid())
+  skillId                String
+  skill                  Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  name                   String
+  slug                   String
+  description            String?
+  isActive               Boolean  @default(true)
+  pricingType            String   @default("NEGOTIABLE")
+  fixedPrice             Int?
+  minPrice               Int?
+  maxPrice               Int?
+  responseTimeoutMinutes Int      @default(30)
+  commissionFee          Int      @default(5000)
+  createdAt              DateTime @default(now())
+
+  @@unique([skillId, slug])
 }
 
 model ProviderProfile {
@@ -171,7 +195,7 @@ model ProviderProfile {
   userId        String         @unique
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   bio           String?
-  serviceType   ServiceType    @default(INDEPENDENT)
+  workMode      WorkMode       @default(INDEPENDENT)
   status        ProviderStatus @default(PENDING)
   availabilityStatus String    @default("AVAILABLE")
   rejectionNote String?
@@ -204,7 +228,7 @@ model ProviderSkill {
   provider        ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
   skillId         String
   skill           Skill           @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  serviceType     ServiceType     @default(INDEPENDENT)
+  workMode        WorkMode        @default(INDEPENDENT)
   priceFrom       Int?
   priceTo         Int?
   priceNote       String?
@@ -455,7 +479,7 @@ model ProviderApplicationSkill {
   application     ProviderApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   skillId         String
   skill           Skill               @relation(fields: [skillId], references: [id])
-  serviceType     ServiceType         @default(INDEPENDENT)
+  workMode        WorkMode            @default(INDEPENDENT)
   experienceYears Float
   priceFrom       Int?
   priceTo         Int?

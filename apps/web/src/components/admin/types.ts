@@ -84,12 +84,26 @@ export interface OrgApplication {
 }
 
 // ─── Category & Skill ────────────────────────────────────────────
+export interface ServiceType {
+  id: string;
+  skillId: string;
+  name: string;
+  description: string | null;
+  pricingType: 'FIXED' | 'NEGOTIABLE' | 'MIN_MAX';
+  fixedFee: number;
+  providerTimeoutMinutes: number;
+  isActive: boolean;
+  providersCount: number;
+  createdAt: string;
+}
+
 export interface Skill {
   id: string;
   categoryId: string;
   name: string;
   description: string | null;
   isActive: boolean;
+  serviceTypes?: ServiceType[];
   providersCount: number;
   createdAt: string;
 }

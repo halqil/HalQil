@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { Star, Shield, Users, Briefcase, MapPin, Building, Info } from "lucide-react";
 import Link from "next/link";
 import Avatar from "../../../components/Avatar";
+import { useOrganization } from "./OrganizationContext";
 
 export default function OrganizationDetail() {
   const params = useParams();
@@ -16,16 +17,21 @@ export default function OrganizationDetail() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
 
-  const [org, setOrg] = useState<Record<string, any> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { org, loading } = useOrganization();
+  const [selectedSkillId, setSelectedSkillId] = useState("");
 
   // Order modal state
   const [showOrderModal, setShowOrderModal] = useState(false);
-  const [selectedSkillId, setSelectedSkillId] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
   const [preferredDate, setPreferredDate] = useState("");
   const [orderLoading, setOrderLoading] = useState(false);
+
+  useEffect(() => {
+    if (org && org.skills?.length > 0 && !selectedSkillId) {
+      setSelectedSkillId(org.skills[0].skillId);
+    }
+  }, [org, selectedSkillId]);
 
   // Minimal sana: hozirgi vaqt, timezone bilan
   const getMinDateTime = () => {
@@ -36,29 +42,10 @@ export default function OrganizationDetail() {
   const [minDateTime, setMinDateTime] = useState(getMinDateTime);
 
   useEffect(() => {
-    if (!id) return;
-    const fetchOrg = async () => {
-      try {
-        const res = await api.get(`/organizations/${id}`);
-        if (res.data.success) {
-          setOrg(res.data.data);
-          if (res.data.data.skills?.length > 0) {
-            setSelectedSkillId(res.data.data.skills[0].skillId);
-          }
-        }
-      } catch (error) {
-        toast.error("Tashkilot topilmadi");
-        router.push("/organizations");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrg();
-
     // Har daqiqada minDateTime ni yangilash
     const interval = setInterval(() => setMinDateTime(getMinDateTime()), 60_000);
     return () => clearInterval(interval);
-  }, [id, router]);
+  }, []);
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,6 +148,25 @@ export default function OrganizationDetail() {
             {org.description || "Tashkilot haqida ma'lumot yo'q."}
           </p>
         </div>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="flex overflow-x-auto border-b hide-scrollbar" style={{ borderColor: "var(--border-strong)" }}>
+        <Link href={`/organizations/${id}`} className="px-6 py-3 font-medium border-b-2 border-indigo-500 text-indigo-500 whitespace-nowrap">
+          Ma'lumot
+        </Link>
+        <Link href={`/organizations/${id}/catalog`} className="px-6 py-3 font-medium border-b-2 border-transparent hover:text-indigo-500 whitespace-nowrap transition-colors" style={{ color: "var(--text-secondary)" }}>
+          Katalog
+        </Link>
+        <Link href={`/organizations/${id}/providers`} className="px-6 py-3 font-medium border-b-2 border-transparent hover:text-indigo-500 whitespace-nowrap transition-colors" style={{ color: "var(--text-secondary)" }}>
+          Ustalar
+        </Link>
+        <button className="px-6 py-3 font-medium border-b-2 border-transparent hover:text-indigo-500 whitespace-nowrap transition-colors opacity-50 cursor-not-allowed" style={{ color: "var(--text-secondary)" }} title="Tez orada">
+          Galereya
+        </button>
+        <button className="px-6 py-3 font-medium border-b-2 border-transparent hover:text-indigo-500 whitespace-nowrap transition-colors opacity-50 cursor-not-allowed" style={{ color: "var(--text-secondary)" }} title="Tez orada">
+          Sharhlar
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

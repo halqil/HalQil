@@ -22,7 +22,7 @@ export function ChatFilters({ onCategoryChange, onSearchChange }: ChatFiltersPro
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const res = await api.get("/chats/categories");
+        const res = await api.get("/chat/categories");
         if (res.data.success) {
           setCategories(res.data.data);
         }

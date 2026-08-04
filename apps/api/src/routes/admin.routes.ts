@@ -4,6 +4,7 @@ import {
   getCategoryProviders, checkCategoryDelete, deleteCategory,
   getSkills, createSkill, updateSkill, toggleSkill,
   getSkillProviders, checkSkillDelete, deleteSkill,
+  getServiceTypes, createServiceType, updateServiceType, toggleServiceType, deleteServiceType,
   getApplications, getApplicationDetail, approveApplication, rejectApplication, openApplicationChat,
   getOrgApplications, approveOrgApplication, rejectOrgApplication,
   getAdminOrganizations, updateOrganization, toggleOrganization,
@@ -37,6 +38,13 @@ router.patch('/skills/:id/toggle', toggleSkill);
 router.get('/skills/:id/providers', getSkillProviders);
 router.get('/skills/:id/check-delete', checkSkillDelete);
 router.delete('/skills/:id', deleteSkill);
+
+// Service Types
+router.get('/service-types', getServiceTypes);
+router.post('/service-types', createServiceType);
+router.patch('/service-types/:id', updateServiceType);
+router.patch('/service-types/:id/toggle', toggleServiceType);
+router.delete('/service-types/:id', deleteServiceType);
 
 
 // Provider Applications

@@ -87,7 +87,7 @@ export default function AppNavigation() {
     if (!isAuthenticated) return;
 
     api
-      .get("/chats")
+      .get("/chat")
       .then((res) => {
         if (res.data.success) {
           const totalUnread = res.data.data.reduce(

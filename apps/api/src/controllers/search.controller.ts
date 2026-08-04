@@ -8,7 +8,7 @@ import { prisma } from '../lib/prisma';
  */
 export const getProviders = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { category_id, skill_id, district, service_type, sort } = req.query;
+    const { category_id, skill_id, q, service_type, sort } = req.query;
 
     let filter: any = {
       status: 'APPROVED',
@@ -17,15 +17,22 @@ export const getProviders = async (req: Request, res: Response, next: NextFuncti
 
     if (service_type && service_type !== 'BOTH') {
       filter.OR = [
-        { serviceType: service_type },
-        { serviceType: 'BOTH' }
+        { workMode: service_type },
+        { workMode: 'BOTH' }
       ];
     }
 
-    if (district) {
-      filter.districts = {
-        some: { districtName: { contains: district as string, mode: 'insensitive' } }
-      };
+    if (q) {
+      const searchStr = String(q);
+      filter.OR = filter.OR || [];
+      filter.OR.push(
+        { user: { name: { contains: searchStr, mode: 'insensitive' } } },
+        { user: { firstName: { contains: searchStr, mode: 'insensitive' } } },
+        { user: { lastName: { contains: searchStr, mode: 'insensitive' } } },
+        { bio: { contains: searchStr, mode: 'insensitive' } },
+        { providerSkills: { some: { skill: { name: { contains: searchStr, mode: 'insensitive' } } } } },
+        { districts: { some: { districtName: { contains: searchStr, mode: 'insensitive' } } } }
+      );
     }
 
     if (skill_id) {
@@ -72,7 +79,7 @@ export const getProviders = async (req: Request, res: Response, next: NextFuncti
       avatar: p.user.avatar,
       reliability: p.reliability,
       rating: p.rating,
-      service_type: p.serviceType,
+      workMode: p.workMode,
       skills: p.providerSkills.map(ps => ({
         id: ps.skill.id,
         name: ps.skill.name,
@@ -316,7 +323,7 @@ export const getProviderSkillDetail = async (req: Request, res: Response, next: 
         skillId: providerSkill.skillId,
         providerId: providerSkill.providerId,
         skill: providerSkill.skill,
-        serviceType: providerSkill.serviceType,
+        workMode: providerSkill.workMode,
         priceFrom: providerSkill.priceFrom,
         priceTo: providerSkill.priceTo,
         priceNote: providerSkill.priceNote,
@@ -362,3 +369,86 @@ export const getProviderSkillDetail = async (req: Request, res: Response, next: 
     next(error)
   }
 }
+
+/**
+ * @desc    Global qidiruv (Unified search)
+ * @route   GET /api/search/unified
+ * @access  Public
+ */
+export const unifiedSearch = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { q } = req.query;
+    if (!q || typeof q !== 'string' || q.trim().length === 0) {
+      return res.json({ success: true, data: { providers: [], organizations: [], skills: [] } });
+    }
+
+    const query = q.trim();
+
+    // Providers
+    const providers = await prisma.providerProfile.findMany({
+      where: {
+        status: 'APPROVED',
+        user: {
+          status: 'ACTIVE',
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { firstName: { contains: query, mode: 'insensitive' } },
+            { lastName: { contains: query, mode: 'insensitive' } },
+          ]
+        }
+      },
+      take: 5,
+      include: {
+        user: { select: { id: true, name: true, avatar: true, reliability: true } }
+      }
+    });
+
+    // Organizations
+    const organizations = await prisma.organization.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { description: { contains: query, mode: 'insensitive' } }
+        ]
+      },
+      take: 5,
+      select: { id: true, name: true, logo: true, rating: true, reliability: true }
+    });
+
+    // Skills
+    const skills = await prisma.skill.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { description: { contains: query, mode: 'insensitive' } }
+        ]
+      },
+      take: 5,
+      include: { category: true }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        providers: providers.map(p => ({
+          id: p.id,
+          name: p.user.name,
+          avatar: p.user.avatar,
+          reliability: p.user.reliability,
+          rating: p.rating
+        })),
+        organizations,
+        skills: skills.map(s => ({
+          id: s.id,
+          name: s.name,
+          slug: s.slug,
+          category: s.category ? { id: s.category.id, name: s.category.name, slug: s.category.slug } : null
+        }))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};

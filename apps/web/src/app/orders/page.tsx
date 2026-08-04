@@ -227,7 +227,31 @@ export default function OrdersPage() {
         </p>
       </div>
 
-      {/* Tab filter */}
+      {/* Navigation tabs */}
+      <div className="flex gap-4 border-b pb-4 mb-2">
+        <button
+          onClick={() => router.push('/orders/requested')}
+          className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border border-blue-100 shadow-sm"
+        >
+          <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+            <Package className="w-5 h-5" />
+          </div>
+          <span className="font-semibold text-sm">Yuborilgan buyurtmalar</span>
+        </button>
+        {user?.role === "PROVIDER" && (
+          <button
+            onClick={() => router.push('/orders/received')}
+            className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-100 shadow-sm"
+          >
+            <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center">
+              <Briefcase className="w-5 h-5" />
+            </div>
+            <span className="font-semibold text-sm">Kelgan buyurtmalar</span>
+          </button>
+        )}
+      </div>
+
+      {/* Tab filter (legacy) */}
       <div className="flex gap-2 flex-wrap">
         {TABS.map(t => {
           const count = tabCount(t.key)

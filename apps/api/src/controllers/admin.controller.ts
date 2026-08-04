@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
+import { generateSlug } from '../utils/slug';
 
 // ------------------------ CATEGORY ------------------------
 
@@ -66,7 +67,7 @@ export const createCategory = async (req: Request, res: Response, next: NextFunc
     }
 
     const category = await prisma.category.create({
-      data: { name, description, icon }
+      data: { name, slug: generateSlug(name), description, icon }
     });
 
     res.status(201).json({ success: true, data: category });
@@ -98,7 +99,7 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
     const updated = await prisma.category.update({
       where: { id },
       data: {
-        ...(name !== undefined && { name }),
+        ...(name !== undefined && { name, slug: generateSlug(name) }),
         ...(description !== undefined && { description }),
         ...(icon !== undefined && { icon }),
       }
@@ -284,6 +285,7 @@ export const getSkills = async (req: Request, res: Response, next: NextFunction)
       where: filter,
       include: {
         category: true,
+        serviceTypes: true,
         _count: { select: { providerSkills: true } }
       },
       orderBy: { createdAt: 'desc' }
@@ -309,7 +311,7 @@ export const createSkill = async (req: Request, res: Response, next: NextFunctio
     if (!category.isActive) return res.status(400).json({ success: false, error: 'Nofaol kategoriyaga skill qo\'shib bo\'lmaydi', code: 'CATEGORY_INACTIVE' });
 
     const skill = await prisma.skill.create({
-      data: { categoryId, name, description }
+      data: { categoryId, name, slug: generateSlug(name), description }
     });
 
     res.status(201).json({ success: true, data: skill });
@@ -341,7 +343,7 @@ export const updateSkill = async (req: Request, res: Response, next: NextFunctio
     const updated = await prisma.skill.update({
       where: { id },
       data: {
-        ...(name !== undefined && { name }),
+        ...(name !== undefined && { name, slug: generateSlug(name) }),
         ...(description !== undefined && { description }),
       }
     });
@@ -646,10 +648,10 @@ export const approveApplication = async (req: Request, res: Response, next: Next
       // 3. ProviderProfile yaratish
       const profile = await tx.providerProfile.upsert({
         where: { userId: application.userId },
-        update: { status: 'APPROVED', applicationId: id, serviceType: 'INDEPENDENT' },
+        update: { status: 'APPROVED', applicationId: id, workMode: 'INDEPENDENT' },
         create: {
           userId: application.userId,
-          serviceType: 'INDEPENDENT',
+          workMode: 'INDEPENDENT',
           status: 'APPROVED',
           applicationId: id,
           bio: null
@@ -663,7 +665,7 @@ export const approveApplication = async (req: Request, res: Response, next: Next
           data: application.skills.map(s => ({
             providerId: profile.id,
             skillId: s.skillId,
-            serviceType: s.serviceType as any,
+            workMode: s.workMode as any,
             experienceYears: s.experienceYears,
             priceFrom: s.priceFrom,
             priceTo: s.priceTo,
@@ -1407,6 +1409,156 @@ export const sendNotificationToUser = async (req: Request, res: Response, next: 
     });
 
     res.json({ success: true, data: notification });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// ─── SERVICE TYPES (by SUPER_ADMIN) ──────────────────────────────────────────
+
+/**
+ * @desc    Barcha service typelarni olish
+ * @route   GET /api/admin/service-types
+ * @access  SUPER_ADMIN
+ */
+export const getServiceTypes = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { skill_id } = req.query;
+    
+    let filter: any = {};
+    if (skill_id) filter.skillId = skill_id as string;
+
+    const serviceTypes = await prisma.serviceType.findMany({
+      where: filter,
+      include: {
+        skill: { select: { id: true, name: true, category: { select: { id: true, name: true } } } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ success: true, data: serviceTypes });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Yangi service type yaratish
+ * @route   POST /api/admin/service-types
+ * @access  SUPER_ADMIN
+ */
+export const createServiceType = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { skillId, name, description, pricingType, fixedPrice, minPrice, maxPrice, responseTimeoutMinutes, commissionFee } = req.body;
+
+    const skill = await prisma.skill.findUnique({ where: { id: skillId } });
+    if (!skill) return res.status(404).json({ success: false, error: 'Skill topilmadi', code: 'NOT_FOUND' });
+
+    const existing = await prisma.serviceType.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' }, skillId }
+    });
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'Bunday nomli xizmat turi mavjud', code: 'DUPLICATE_SERVICE_TYPE' });
+    }
+
+    const st = await prisma.serviceType.create({
+      data: { 
+        skillId, 
+        name, 
+        slug: generateSlug(name), 
+        description, 
+        pricingType: pricingType || "NEGOTIABLE",
+        fixedPrice, minPrice, maxPrice, 
+        responseTimeoutMinutes: responseTimeoutMinutes || 30,
+        commissionFee: commissionFee || 5000
+      }
+    });
+
+    res.status(201).json({ success: true, data: st });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Service type tahrirlash
+ * @route   PATCH /api/admin/service-types/:id
+ * @access  SUPER_ADMIN
+ */
+export const updateServiceType = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { name, description, pricingType, fixedPrice, minPrice, maxPrice, responseTimeoutMinutes, commissionFee } = req.body;
+
+    const st = await prisma.serviceType.findUnique({ where: { id } });
+    if (!st) return res.status(404).json({ success: false, error: 'Service Type topilmadi', code: 'NOT_FOUND' });
+
+    if (name && name.toLowerCase() !== st.name.toLowerCase()) {
+      const existing = await prisma.serviceType.findFirst({
+        where: { name: { equals: name, mode: 'insensitive' }, skillId: st.skillId, id: { not: id } }
+      });
+      if (existing) return res.status(400).json({ success: false, error: 'Bunday nomli xizmat turi mavjud', code: 'DUPLICATE_SERVICE_TYPE' });
+    }
+
+    const updated = await prisma.serviceType.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name, slug: generateSlug(name) }),
+        ...(description !== undefined && { description }),
+        ...(pricingType !== undefined && { pricingType }),
+        ...(fixedPrice !== undefined && { fixedPrice }),
+        ...(minPrice !== undefined && { minPrice }),
+        ...(maxPrice !== undefined && { maxPrice }),
+        ...(responseTimeoutMinutes !== undefined && { responseTimeoutMinutes }),
+        ...(commissionFee !== undefined && { commissionFee }),
+      }
+    });
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Service type toggle
+ * @route   PATCH /api/admin/service-types/:id/toggle
+ * @access  SUPER_ADMIN
+ */
+export const toggleServiceType = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const st = await prisma.serviceType.findUnique({ where: { id } });
+    if (!st) return res.status(404).json({ success: false, error: 'Service Type topilmadi', code: 'NOT_FOUND' });
+
+    const updated = await prisma.serviceType.update({
+      where: { id },
+      data: { isActive: !st.isActive }
+    });
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Service type o'chirish
+ * @route   DELETE /api/admin/service-types/:id
+ * @access  SUPER_ADMIN
+ */
+export const deleteServiceType = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const st = await prisma.serviceType.findUnique({ where: { id } });
+    if (!st) return res.status(404).json({ success: false, error: 'Service Type topilmadi', code: 'NOT_FOUND' });
+
+    await prisma.serviceType.delete({ where: { id } });
+
+    res.json({ success: true, data: { message: 'Xizmat turi o\'chirildi' } });
   } catch (error) {
     next(error);
   }

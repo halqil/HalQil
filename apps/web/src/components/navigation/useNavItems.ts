@@ -1,6 +1,6 @@
 import {
   User, Package, MessageCircle, Bookmark, Settings,
-  LayoutDashboard, Building2, Sliders, Home
+  LayoutDashboard, Building2, Sliders, Home, Sparkles, HelpCircle, Wallet, Grid
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -22,19 +22,31 @@ export interface NavItem {
 export function getNavItems(role: string) {
   /* ─── Desktop Sidebar ──────────────────────────────────────────────── */
   const sidebarItems: NavItem[] = [
-    { key: "profile", icon: User, label: "Profil", href: "/profile" },
+    { key: "home", icon: Home, label: "Bosh sahifa", href: "/home" },
+    { key: "ai-search", icon: Sparkles, label: "AI Qidiruv", href: "/ai-search" },
+    { key: "catalog", icon: Grid, label: "Katalog", href: "/catalog" },
     { key: "orders", icon: Package, label: "Buyurtmalar", href: "/orders" },
-    { key: "chats", icon: MessageCircle, label: "Chatlar", href: "/chats" },
-    { key: "saveds", icon: Bookmark, label: "Saqlanganlar", href: "/saveds" },
-    { key: "settings", icon: Settings, label: "Sozlamalar", href: "/settings" },
+    { key: "chats", icon: MessageCircle, label: "Chatlar", href: "/chat" },
   ];
 
   if (role === "PROVIDER") {
     sidebarItems.push(
       { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/provider/dashboard" },
-      { key: "tashkilotim", icon: Building2, label: "Tashkilotim", href: "/tashkilotim" },
+      { key: "wallet", icon: Wallet, label: "Hamyon", href: "/provider/wallet" },
+      { key: "tashkilot", icon: Building2, label: "Tashkilot", href: "/provider/organization" },
+      { key: "provider_profile", icon: User, label: "Usta Profili", href: "/provider/profile" },
+      { key: "provider_settings", icon: Settings, label: "Usta Sozlamalari", href: "/provider/settings" }
+    );
+  } else {
+    // Normal users have profile and settings here, providers have their own
+    sidebarItems.push(
+      { key: "profile", icon: User, label: "Profil", href: "/profile" },
+      { key: "settings", icon: Settings, label: "Sozlamalar", href: "/settings" }
     );
   }
+
+  // Everyone gets support at the bottom
+  sidebarItems.push({ key: "support", icon: HelpCircle, label: "Yordam", href: "/support" });
 
   if (role === "SUPER_ADMIN") {
     sidebarItems.push(
@@ -50,28 +62,33 @@ export function getNavItems(role: string) {
     bottomItems = [
       { key: "home", icon: Home, label: "Bosh sahifa", href: "/home" },
       { key: "orders", icon: Package, label: "Buyurtmalar", href: "/orders" },
-      { key: "chats", icon: MessageCircle, label: "Chatlar", href: "/chats" },
-      { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/provider/dashboard" },
+      { key: "ai-search", icon: Sparkles, label: "AI", href: "/ai-search" },
+      { key: "wallet", icon: Wallet, label: "Hamyon", href: "/provider/wallet" },
     ];
     moreItems = [
-      { key: "settings", icon: Settings, label: "Sozlamalar", href: "/settings" },
-      { key: "tashkilotim", icon: Building2, label: "Tashkilotim", href: "/tashkilotim" },
+      { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/provider/dashboard" },
+      { key: "chats", icon: MessageCircle, label: "Chatlar", href: "/chat" },
+      { key: "catalog", icon: Grid, label: "Katalog", href: "/catalog" },
+      { key: "tashkilot", icon: Building2, label: "Tashkilot", href: "/provider/organization" },
+      { key: "provider_profile", icon: User, label: "Usta Profili", href: "/provider/profile" },
+      { key: "provider_settings", icon: Settings, label: "Sozlamalar", href: "/provider/settings" },
+      { key: "support", icon: HelpCircle, label: "Yordam", href: "/support" }
     ];
   } else if (role === "SUPER_ADMIN") {
     bottomItems = [
       { key: "home", icon: Home, label: "Bosh sahifa", href: "/home" },
       { key: "orders", icon: Package, label: "Buyurtmalar", href: "/orders" },
-      { key: "chats", icon: MessageCircle, label: "Chatlar", href: "/chats" },
+      { key: "ai-search", icon: Sparkles, label: "AI", href: "/ai-search" },
       { key: "admin", icon: Sliders, label: "Boshqaruv", href: "/admin" },
       { key: "settings", icon: Settings, label: "Sozlamalar", href: "/settings" },
     ];
   } else {
     // USER
     bottomItems = [
-      { key: "home", icon: Home, label: "Bosh sahifa", href: "/home" },
-      { key: "orders", icon: Package, label: "Buyurtmalar", href: "/orders" },
-      { key: "chats", icon: MessageCircle, label: "Chatlar", href: "/chats" },
-      { key: "settings", icon: Settings, label: "Sozlamalar", href: "/settings" },
+      { key: "home", icon: Home, label: "Bosh", href: "/home" },
+      { key: "catalog", icon: Grid, label: "Katalog", href: "/catalog" },
+      { key: "ai-search", icon: Sparkles, label: "AI", href: "/ai-search" },
+      { key: "chats", icon: MessageCircle, label: "Chatlar", href: "/chat" },
     ];
   }
 

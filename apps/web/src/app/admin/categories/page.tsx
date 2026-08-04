@@ -8,10 +8,10 @@ import { SkeletonRow } from '@/components/admin/shared/SkeletonRow';
 import { EmptyState } from '@/components/admin/shared/EmptyState';
 import { PageHeader } from '@/components/admin/shared/PageHeader';
 import { StatusBadge } from '@/components/admin/shared/StatusBadge';
-import type { Category, Skill } from '@/components/admin/types';
+import type { Category, Skill, ServiceType } from '@/components/admin/types';
 import {
   Plus, ChevronRight, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight,
-  FolderOpen, Loader2, Search, X, Zap,
+  FolderOpen, Loader2, Search, X, Zap, Activity
 } from 'lucide-react';
 
 // ─── Modal ───────────────────────────────────────────────────────
@@ -64,10 +64,17 @@ export default function AdminCategoriesPage() {
   const [skillForm, setSkillForm] = useState({ name: '', description: '' });
   const [skillSaving, setSkillSaving] = useState(false);
 
+  // ServiceType modal
+  const [stModalOpen, setStModalOpen] = useState(false);
+  const [editingSt, setEditingSt] = useState<ServiceType | null>(null);
+  const [stSkillId, setStSkillId] = useState('');
+  const [stForm, setStForm] = useState({ name: '', description: '', pricingType: 'FIXED', fixedFee: 0, providerTimeoutMinutes: 30 });
+  const [stSaving, setStSaving] = useState(false);
+
   // Toggle/Delete
-  const [toggleTarget, setToggleTarget] = useState<{ type: 'category' | 'skill'; id: string; name: string; isActive: boolean } | null>(null);
+  const [toggleTarget, setToggleTarget] = useState<{ type: 'category' | 'skill' | 'serviceType'; id: string; name: string; isActive: boolean } | null>(null);
   const [toggleLoading, setToggleLoading] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'category' | 'skill'; id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'category' | 'skill' | 'serviceType'; id: string; name: string } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
@@ -184,6 +191,48 @@ export default function AdminCategoriesPage() {
     }
   };
 
+  // ─── ServiceType CRUD ──────────────────────────────────────────
+  const openAddSt = (skillId: string) => {
+    setEditingSt(null);
+    setStSkillId(skillId);
+    setStForm({ name: '', description: '', pricingType: 'FIXED', fixedFee: 0, providerTimeoutMinutes: 30 });
+    setStModalOpen(true);
+  };
+
+  const openEditSt = (st: ServiceType) => {
+    setEditingSt(st);
+    setStSkillId(st.skillId);
+    setStForm({ name: st.name, description: st.description || '', pricingType: st.pricingType, fixedFee: st.fixedFee, providerTimeoutMinutes: st.providerTimeoutMinutes });
+    setStModalOpen(true);
+  };
+
+  const handleStSave = async () => {
+    if (!stForm.name.trim()) { toast.error('Nomi kiritilishi shart'); return; }
+    setStSaving(true);
+    try {
+      const body = {
+        name: stForm.name.trim(),
+        description: stForm.description.trim() || null,
+        pricingType: stForm.pricingType,
+        fixedFee: Number(stForm.fixedFee),
+        providerTimeoutMinutes: Number(stForm.providerTimeoutMinutes)
+      };
+      if (editingSt) {
+        await api.patch(`/admin/service-types/${editingSt.id}`, body);
+        toast.success('ServiceType yangilandi');
+      } else {
+        await api.post('/admin/service-types', { ...body, skillId: stSkillId });
+        toast.success("ServiceType qo'shildi");
+      }
+      setStModalOpen(false);
+      fetchCategories();
+    } catch {
+      toast.error('Xatolik yuz berdi');
+    } finally {
+      setStSaving(false);
+    }
+  };
+
   // ─── Toggle ────────────────────────────────────────────────────
   const handleToggle = async () => {
     if (!toggleTarget) return;
@@ -191,7 +240,9 @@ export default function AdminCategoriesPage() {
     try {
       const endpoint = toggleTarget.type === 'category'
         ? `/admin/categories/${toggleTarget.id}/toggle`
-        : `/admin/skills/${toggleTarget.id}/toggle`;
+        : toggleTarget.type === 'skill' 
+          ? `/admin/skills/${toggleTarget.id}/toggle`
+          : `/admin/service-types/${toggleTarget.id}/toggle`;
       await api.patch(endpoint);
       toast.success(toggleTarget.isActive ? 'Nofaol qilindi' : 'Faol qilindi');
       fetchCategories();
@@ -204,11 +255,13 @@ export default function AdminCategoriesPage() {
   };
 
   // ─── Delete ────────────────────────────────────────────────────
-  const handleDeleteCheck = async (type: 'category' | 'skill', id: string, name: string) => {
+  const handleDeleteCheck = async (type: 'category' | 'skill' | 'serviceType', id: string, name: string) => {
     try {
       const endpoint = type === 'category'
         ? `/admin/categories/${id}/check-delete`
-        : `/admin/skills/${id}/check-delete`;
+        : type === 'skill'
+          ? `/admin/skills/${id}/check-delete`
+          : `/admin/service-types/${id}/check-delete`;
       const res = await api.get(endpoint);
       const data = res.data.data ?? res.data;
       if (!data.canDelete) {
@@ -232,7 +285,9 @@ export default function AdminCategoriesPage() {
     try {
       const endpoint = deleteTarget.type === 'category'
         ? `/admin/categories/${deleteTarget.id}`
-        : `/admin/skills/${deleteTarget.id}`;
+        : deleteTarget.type === 'skill'
+          ? `/admin/skills/${deleteTarget.id}`
+          : `/admin/service-types/${deleteTarget.id}`;
       await api.delete(endpoint);
       toast.success("O'chirildi");
       fetchCategories();
@@ -358,39 +413,87 @@ export default function AdminCategoriesPage() {
                 {expanded.has(cat.id) && cat.skills && cat.skills.length > 0 && (
                   <div className="border-t" style={{ borderColor: 'var(--border)' }}>
                     {cat.skills.map((skill) => (
-                      <div
-                        key={skill.id}
-                        className="flex items-center gap-3 pl-14 pr-4 py-2.5 transition-colors"
-                        style={{ borderBottom: '1px solid var(--border)' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      >
-                        <Zap size={14} style={{ color: 'var(--muted)' }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm" style={{ color: 'var(--text)' }}>{skill.name}</p>
-                          {skill.description && <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{skill.description}</p>}
+                      <div key={skill.id}>
+                        <div
+                          className="flex items-center gap-3 pl-14 pr-4 py-2.5 transition-colors cursor-pointer"
+                          style={{ borderBottom: '1px solid var(--border)' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          onClick={() => toggleExpand(skill.id)}
+                        >
+                          <button className="btn-ghost p-1 rounded-lg flex-shrink-0">
+                            {expanded.has(skill.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                          <Zap size={14} style={{ color: 'var(--muted)' }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm" style={{ color: 'var(--text)' }}>{skill.name}</p>
+                            {skill.description && <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{skill.description}</p>}
+                          </div>
+                          <span className="text-xs" style={{ color: 'var(--muted)' }}>{skill.providersCount ?? 0} provayder</span>
+                          <StatusBadge status={skill.isActive ? 'ACTIVE' : 'FROZEN'} type="user" />
+                          <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => openEditSkill(skill)} className="btn-ghost p-1.5 rounded-lg" title="Tahrirlash">
+                              <Edit2 size={12} />
+                            </button>
+                            <button onClick={() => openAddSt(skill.id)} className="btn-ghost p-1.5 rounded-lg" title="Xizmat turi qo'shish">
+                              <Plus size={12} />
+                            </button>
+                            <button
+                              onClick={() => setToggleTarget({ type: 'skill', id: skill.id, name: skill.name, isActive: skill.isActive })}
+                              className="btn-ghost p-1.5 rounded-lg"
+                              title={skill.isActive ? 'Nofaol qilish' : 'Faol qilish'}
+                            >
+                              {skill.isActive ? <ToggleRight size={12} style={{ color: '#22c55e' }} /> : <ToggleLeft size={12} />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCheck('skill', skill.id, skill.name)}
+                              className="btn-ghost p-1.5 rounded-lg"
+                              title="O'chirish"
+                            >
+                              <Trash2 size={12} style={{ color: '#ef4444' }} />
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-xs" style={{ color: 'var(--muted)' }}>{skill.providersCount ?? 0} provayder</span>
-                        <StatusBadge status={skill.isActive ? 'ACTIVE' : 'FROZEN'} type="user" />
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button onClick={() => openEditSkill(skill)} className="btn-ghost p-1.5 rounded-lg" title="Tahrirlash">
-                            <Edit2 size={12} />
-                          </button>
-                          <button
-                            onClick={() => setToggleTarget({ type: 'skill', id: skill.id, name: skill.name, isActive: skill.isActive })}
-                            className="btn-ghost p-1.5 rounded-lg"
-                            title={skill.isActive ? 'Nofaol qilish' : 'Faol qilish'}
-                          >
-                            {skill.isActive ? <ToggleRight size={12} style={{ color: '#22c55e' }} /> : <ToggleLeft size={12} />}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCheck('skill', skill.id, skill.name)}
-                            className="btn-ghost p-1.5 rounded-lg"
-                            title="O'chirish"
-                          >
-                            <Trash2 size={12} style={{ color: '#ef4444' }} />
-                          </button>
-                        </div>
+
+                        {/* Service Types */}
+                        {expanded.has(skill.id) && skill.serviceTypes && skill.serviceTypes.length > 0 && (
+                          <div className="border-t bg-gray-50/10" style={{ borderColor: 'var(--border)' }}>
+                            {skill.serviceTypes.map((st) => (
+                              <div
+                                key={st.id}
+                                className="flex items-center gap-3 pl-24 pr-4 py-2 transition-colors"
+                                style={{ borderBottom: '1px solid var(--border)' }}
+                                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)')}
+                                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              >
+                                <Activity size={14} style={{ color: 'var(--muted)' }} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm" style={{ color: 'var(--text)' }}>{st.name}</p>
+                                  {st.description && <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{st.description}</p>}
+                                </div>
+                                <span className="glass-badge text-xs px-2 py-1 rounded-lg whitespace-nowrap">
+                                  {st.pricingType === 'FIXED' ? 'Qat\'iy' : st.pricingType === 'NEGOTIABLE' ? 'Kelishilgan' : 'Min/Max'}
+                                </span>
+                                <span className="text-xs" style={{ color: 'var(--muted)' }}>{st.providersCount ?? 0} provayder</span>
+                                <StatusBadge status={st.isActive ? 'ACTIVE' : 'FROZEN'} type="user" />
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <button onClick={() => openEditSt(st)} className="btn-ghost p-1.5 rounded-lg" title="Tahrirlash">
+                                    <Edit2 size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => setToggleTarget({ type: 'serviceType', id: st.id, name: st.name, isActive: st.isActive })}
+                                    className="btn-ghost p-1.5 rounded-lg"
+                                  >
+                                    {st.isActive ? <ToggleRight size={12} style={{ color: '#22c55e' }} /> : <ToggleLeft size={12} />}
+                                  </button>
+                                  <button onClick={() => handleDeleteCheck('serviceType', st.id, st.name)} className="btn-ghost p-1.5 rounded-lg" style={{ color: '#ef4444' }}>
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -446,27 +549,59 @@ export default function AdminCategoriesPage() {
                 </div>
 
                 {expanded.has(cat.id) && cat.skills && cat.skills.length > 0 && (
-                  <div className="mt-3 pt-3 space-y-2" style={{ borderTop: '1px solid var(--border)' }}>
+                  <div className="pl-4 mt-2 space-y-1 border-l-2" style={{ borderColor: 'var(--border)' }}>
                     {cat.skills.map((skill) => (
-                      <div key={skill.id} className="flex items-center justify-between py-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs" style={{ color: 'var(--text)' }}>{skill.name}</span>
-                          <StatusBadge status={skill.isActive ? 'ACTIVE' : 'FROZEN'} type="user" />
+                      <div key={skill.id}>
+                        <div className="flex items-center justify-between py-1 cursor-pointer" onClick={() => toggleExpand(skill.id)}>
+                          <div className="flex items-center gap-2">
+                            {expanded.has(skill.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>{skill.name}</span>
+                            <StatusBadge status={skill.isActive ? 'ACTIVE' : 'FROZEN'} type="user" />
+                          </div>
+                          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => openEditSkill(skill)} className="btn-ghost p-1 rounded-lg">
+                              <Edit2 size={12} />
+                            </button>
+                            <button onClick={() => openAddSt(skill.id)} className="btn-ghost p-1 rounded-lg">
+                              <Plus size={12} />
+                            </button>
+                            <button
+                              onClick={() => setToggleTarget({ type: 'skill', id: skill.id, name: skill.name, isActive: skill.isActive })}
+                              className="btn-ghost p-1 rounded-lg"
+                            >
+                              {skill.isActive ? <ToggleRight size={12} style={{ color: '#22c55e' }} /> : <ToggleLeft size={12} />}
+                            </button>
+                            <button onClick={() => handleDeleteCheck('skill', skill.id, skill.name)} className="btn-ghost p-1 rounded-lg" style={{ color: '#ef4444' }}>
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => openEditSkill(skill)} className="btn-ghost p-1 rounded-lg">
-                            <Edit2 size={12} />
-                          </button>
-                          <button
-                            onClick={() => setToggleTarget({ type: 'skill', id: skill.id, name: skill.name, isActive: skill.isActive })}
-                            className="btn-ghost p-1 rounded-lg"
-                          >
-                            {skill.isActive ? <ToggleRight size={12} style={{ color: '#22c55e' }} /> : <ToggleLeft size={12} />}
-                          </button>
-                          <button onClick={() => handleDeleteCheck('skill', skill.id, skill.name)} className="btn-ghost p-1 rounded-lg" style={{ color: '#ef4444' }}>
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+
+                        {/* Mobile Service Types */}
+                        {expanded.has(skill.id) && skill.serviceTypes && skill.serviceTypes.length > 0 && (
+                          <div className="pl-4 mt-2 space-y-2 border-l-2" style={{ borderColor: 'var(--border)' }}>
+                            {skill.serviceTypes.map((st) => (
+                              <div key={st.id} className="flex flex-col gap-1 py-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs" style={{ color: 'var(--text)' }}>{st.name}</span>
+                                  <div className="flex gap-1">
+                                    <button onClick={() => openEditSt(st)} className="btn-ghost p-1 rounded-lg"><Edit2 size={10} /></button>
+                                    <button onClick={() => setToggleTarget({ type: 'serviceType', id: st.id, name: st.name, isActive: st.isActive })} className="btn-ghost p-1 rounded-lg">
+                                      {st.isActive ? <ToggleRight size={10} style={{ color: '#22c55e' }} /> : <ToggleLeft size={10} />}
+                                    </button>
+                                    <button onClick={() => handleDeleteCheck('serviceType', st.id, st.name)} className="btn-ghost p-1 rounded-lg" style={{ color: '#ef4444' }}><Trash2 size={10} /></button>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="glass-badge text-[10px] px-1.5 py-0.5 rounded-md">
+                                    {st.pricingType}
+                                  </span>
+                                  <StatusBadge status={st.isActive ? 'ACTIVE' : 'FROZEN'} type="user" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -555,6 +690,76 @@ export default function AdminCategoriesPage() {
             <button onClick={() => setSkillModalOpen(false)} className="btn-ghost px-4 py-2.5 rounded-xl text-sm font-medium">Bekor qilish</button>
             <button onClick={handleSkillSave} disabled={skillSaving} className="btn-primary px-5 py-2.5 text-sm font-medium flex items-center gap-2 disabled:opacity-60">
               {skillSaving && <Loader2 size={16} className="animate-spin" />}
+              Saqlash
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ─── ServiceType Modal ─── */}
+      <Modal open={stModalOpen} onClose={() => setStModalOpen(false)} title={editingSt ? 'Xizmat turini tahrirlash' : "Xizmat turi qo'shish"}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Nomi *</label>
+            <input
+              value={stForm.name}
+              onChange={(e) => setStForm({ ...stForm, name: e.target.value })}
+              placeholder="Masalan: Yevro remont, Kosmetik remont..."
+              className="glass-input w-full px-4 py-2.5 text-sm"
+              style={{ color: 'var(--text)' }}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Tavsif</label>
+            <textarea
+              value={stForm.description}
+              onChange={(e) => setStForm({ ...stForm, description: e.target.value })}
+              placeholder="Xizmat turi haqida ma'lumot"
+              rows={2}
+              className="glass-textarea w-full px-4 py-3 text-sm"
+              style={{ color: 'var(--text)' }}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Narxlash turi</label>
+              <select
+                value={stForm.pricingType}
+                onChange={(e) => setStForm({ ...stForm, pricingType: e.target.value })}
+                className="glass-input w-full px-4 py-2.5 text-sm"
+                style={{ color: 'var(--text)' }}
+              >
+                <option value="FIXED">Qat'iy narx (Fixed)</option>
+                <option value="NEGOTIABLE">Kelishilgan (Negotiable)</option>
+                <option value="MIN_MAX">Min-Max (Oraliq)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>O'rtacha Narx</label>
+              <input
+                type="number"
+                value={stForm.fixedFee}
+                onChange={(e) => setStForm({ ...stForm, fixedFee: Number(e.target.value) })}
+                className="glass-input w-full px-4 py-2.5 text-sm"
+                style={{ color: 'var(--text)' }}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Usta topish vaqti (Minut)</label>
+            <input
+              type="number"
+              value={stForm.providerTimeoutMinutes}
+              onChange={(e) => setStForm({ ...stForm, providerTimeoutMinutes: Number(e.target.value) })}
+              className="glass-input w-full px-4 py-2.5 text-sm"
+              style={{ color: 'var(--text)' }}
+            />
+            <p className="text-[10px] mt-1" style={{ color: 'var(--muted)' }}>Avto rad etish vaqti (Default 30 min)</p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={() => setStModalOpen(false)} className="btn-ghost px-4 py-2.5 rounded-xl text-sm font-medium">Bekor qilish</button>
+            <button onClick={handleStSave} disabled={stSaving} className="btn-primary px-5 py-2.5 text-sm font-medium flex items-center gap-2 disabled:opacity-60">
+              {stSaving && <Loader2 size={16} className="animate-spin" />}
               Saqlash
             </button>
           </div>

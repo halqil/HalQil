@@ -11,7 +11,7 @@ export const applyProviderSchema = z.object({
     skills: z.array(
       z.object({
         skillId: z.string().uuid(),
-        serviceType: z.enum(['ORGANIZED', 'UNORGANIZED', 'BOTH']),
+        workMode: z.enum(['INDEPENDENT', 'ORGANIZED', 'UNORGANIZED', 'BOTH']),
         experienceYears: z.number().min(0.5).max(50),
         priceFrom: z.number().optional().nullable(),
         priceTo: z.number().optional().nullable(),

@@ -49,7 +49,7 @@ app.use('/organizations', organizationRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/my/admin-chat', adminChatRoutes);
 app.use('/support', supportRoutes);
-app.use('/chats', chatRoutes);
+app.use('/chat', chatRoutes);
 
 // Health check endpoint — cron job keep-alive (Render free tier uxlab qolmasligi uchun)
 app.get('/health', (req: Request, res: Response) => {

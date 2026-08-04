@@ -30,7 +30,7 @@ export default function ChatHeader({
       {/* Mobilda orqaga tugma */}
       {isMobile && (
         <button
-          onClick={() => router.push("/chats")}
+          onClick={() => router.push("/chat")}
           className="flex-shrink-0 p-1 rounded-lg transition-colors hover:bg-blue-500/10"
           style={{ color: "var(--text)" }}
         >
