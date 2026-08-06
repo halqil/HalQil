@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Search,
   ArrowRight,
@@ -27,7 +28,7 @@ import {
   Lock,
   TrendingUp,
   Users,
-  Image,
+  Image as ImageIcon,
   BadgeDollarSign,
   Gift,
   MessageCircle,
@@ -68,15 +69,9 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div ref={mainRef}>
-      {/* -- Dev Stage Banner ------------------------------------------- */}
-      <div className="dev-banner">
-        <Construction size={16} />
-        <span>Loyiha ishlab chiqish bosqichida. Tez orada barcha funksiyalar to'liq ishga tushadi.</span>
-      </div>
-
+    <div ref={mainRef} className="landing-page-wrapper">
       {/* ==============================================================
-          1. HERO
+          1. HERO SECTION
           ============================================================== */}
       <section className="landing-hero">
         {/* Animated gradient mesh */}
@@ -98,7 +93,10 @@ export default function LandingPage() {
 
           <h1 className="landing-hero__title">
             Har qanday muammoni —{" "}
-            <span>Hal Qil</span>
+            <span style={{ background: "none", WebkitTextFillColor: "unset", display: "inline-flex", alignItems: "center", verticalAlign: "middle" }}>
+              <Image src="/logo-dark.png" alt="HalQil Logo" width={180} height={54} className="logo-dark-mode" style={{ objectFit: 'contain' }} />
+              <Image src="/logo-light.png" alt="HalQil Logo" width={180} height={54} className="logo-light-mode" style={{ objectFit: 'contain' }} />
+            </span>
           </h1>
 
           <p className="landing-hero__subtitle">
@@ -191,7 +189,7 @@ export default function LandingPage() {
       {/* ==============================================================
           NEGA HALQIL?
           ============================================================== */}
-      <section className="landing-section" style={{ background: "var(--bg-secondary)" }}>
+      <section className="landing-section">
         <div className="landing-section__inner">
           <div className="reveal" style={{ textAlign: "center" }}>
             <div className="landing-section__label" style={{ justifyContent: "center" }}>
@@ -371,7 +369,7 @@ export default function LandingPage() {
       {/* ==============================================================
           4. HOW IT WORKS
           ============================================================== */}
-      <section className="landing-section" style={{ background: "var(--bg-secondary)" }}>
+      <section className="landing-section">
         <div className="landing-section__inner">
           <div className="reveal" style={{ textAlign: "center" }}>
             <div className="landing-section__label" style={{ justifyContent: "center" }}>
@@ -477,7 +475,7 @@ export default function LandingPage() {
       {/* ==============================================================
           6. TRUST & SAFETY
           ============================================================== */}
-      <section className="landing-section" style={{ background: "var(--bg-secondary)" }}>
+      <section className="landing-section">
         <div className="landing-section__inner">
           <div className="reveal" style={{ textAlign: "center" }}>
             <div className="landing-section__label" style={{ justifyContent: "center" }}>
@@ -559,7 +557,7 @@ export default function LandingPage() {
                       desc: "Mijozlar o'zlari sizni topadi",
                     },
                     {
-                      icon: <Image size={18} color="#60a5fa" />,
+                      icon: <ImageIcon size={18} color="#60a5fa" />,
                       title: "Raqamli portfolio",
                       desc: "Ishlaringizni galereyada ko'rsating",
                     },
@@ -616,7 +614,7 @@ export default function LandingPage() {
       {/* ==============================================================
           8. TESTIMONIALS
           ============================================================== */}
-      <section className="landing-section" style={{ background: "var(--bg-secondary)" }}>
+      <section className="landing-section">
         <div className="landing-section__inner">
           <div className="reveal" style={{ textAlign: "center" }}>
             <div className="landing-section__label" style={{ justifyContent: "center" }}>
@@ -647,7 +645,10 @@ export default function LandingPage() {
           <div className="landing-footer__grid reveal">
             {/* Brand */}
             <div>
-              <div className="landing-footer__brand-name">HalQil</div>
+              <div className="landing-footer__brand-name" style={{ background: "none", WebkitTextFillColor: "unset", display: "flex", alignItems: "center" }}>
+                <Image src="/logo-dark.png" alt="HalQil Logo" width={140} height={42} className="logo-dark-mode" style={{ objectFit: 'contain' }} />
+                <Image src="/logo-light.png" alt="HalQil Logo" width={140} height={42} className="logo-light-mode" style={{ objectFit: 'contain' }} />
+              </div>
               <p className="landing-footer__brand-desc">
                 O'zbekiston uchun mo'ljallangan sun'iy intellektga asoslangan
                 mahalliy xizmatlar marketpleysi.

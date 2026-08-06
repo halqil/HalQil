@@ -3,19 +3,50 @@
    Dark mode: [data-theme="dark"], Light mode: [data-theme="light"] or default
    =========================================================================== */
 
+/* --- GLOBAL WRAPPER -------------------------------------------------------- */
+.landing-page-wrapper {
+  background: #f8fafc;
+  min-height: 100vh;
+  transition: background-color 0.3s ease;
+}
+
+[data-theme="dark"] .landing-page-wrapper {
+  background: #0f1729;
+}
+
 /* --- Dev Banner ------------------------------------------------------------ */
 .dev-banner {
+  display: flex;
   background: linear-gradient(90deg, #f59e0b, #d97706);
   color: #1c1917;
-  text-align: center;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0;
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.dev-banner__marquee {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 3rem;
+  padding-right: 3rem; /* match gap for seamless loop */
+  animation: marquee 35s linear infinite;
+  will-change: transform;
+  min-width: max-content;
+}
+
+.dev-banner__item {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
 }
 
 /* --- Scroll Reveal --------------------------------------------------------- */
@@ -87,25 +118,15 @@
   padding: 6rem 1.5rem 4rem;
 }
 
-/* Gradient mesh -- default light */
+/* Gradient mesh -- removed to allow uniform background */
 .landing-hero__mesh {
   position: absolute;
   inset: 0;
-  background: linear-gradient(-45deg, #dbeafe, #e0e7ff, #c7d2fe, #bfdbfe);
-  background-size: 400% 400%;
-  animation: heroGradient 20s ease infinite;
   z-index: 0;
 }
 
 [data-theme="dark"] .landing-hero__mesh {
-  background: linear-gradient(-45deg, #0f172a, #1e1b4b, #172554, #0c4a6e);
-  background-size: 400% 400%;
-}
-
-@keyframes heroGradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  /* empty */
 }
 
 /* Floating shapes */

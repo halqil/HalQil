@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor, Construction } from "lucide-react";
 import { useAuthStore } from "../../lib/store";
 import api from "../../lib/api";
 import DesktopNav from "./DesktopNav";
@@ -156,27 +157,50 @@ export default function AppNavigation() {
     };
 
     return (
-      <nav className="guest-nav">
-        <Link href="/" className="guest-nav__logo">
-          HalQil
-        </Link>
-        <div className="guest-nav__actions">
-          <button
-            onClick={handleThemeCycle}
-            className="guest-nav__theme-btn"
-            aria-label={guestThemeLabel()}
-            title={guestThemeLabel()}
-          >
-            {guestThemeIcon()}
-          </button>
-          <Link href="/auth/login" className="btn-ghost text-sm">
-            Kirish
+      <header className="sticky-nav-wrapper">
+        <nav className="guest-nav">
+          <Link href="/" className="guest-nav__logo" style={{ background: "none" }}>
+            <Image src="/logo-dark.png" alt="HalQil Logo" width={120} height={36} className="logo-dark-mode" style={{ objectFit: 'contain' }} />
+            <Image src="/logo-light.png" alt="HalQil Logo" width={120} height={36} className="logo-light-mode" style={{ objectFit: 'contain' }} />
           </Link>
-          <Link href="/auth/register" className="btn-primary text-sm">
-            Ro'yxatdan o'tish
-          </Link>
-        </div>
-      </nav>
+          <div className="guest-nav__actions">
+            <button
+              onClick={handleThemeCycle}
+              className="guest-nav__theme-btn"
+              aria-label={guestThemeLabel()}
+              title={guestThemeLabel()}
+            >
+              {guestThemeIcon()}
+            </button>
+            <Link href="/auth/login" className="btn-ghost text-sm">
+              Kirish
+            </Link>
+            <Link href="/auth/register" className="btn-primary text-sm">
+              Ro'yxatdan o'tish
+            </Link>
+          </div>
+        </nav>
+        {pathname === "/" && (
+          <div className="dev-banner">
+            <div className="dev-banner__marquee">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="dev-banner__item">
+                  <Construction size={16} />
+                  <span>Loyiha ishlab chiqish bosqichida. Tez orada barcha funksiyalar to'liq ishga tushadi.</span>
+                </div>
+              ))}
+            </div>
+            <div className="dev-banner__marquee" aria-hidden="true">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="dev-banner__item">
+                  <Construction size={16} />
+                  <span>Loyiha ishlab chiqish bosqichida. Tez orada barcha funksiyalar to'liq ishga tushadi.</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </header>
     );
   }
 

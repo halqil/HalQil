@@ -507,3 +507,9 @@ body {
   align-items: center;
 }
 
+
+/* Logo Theme Switching */
+.logo-light-mode { display: none; }
+.logo-dark-mode { display: block; }
+[data-theme='dark'] .logo-light-mode { display: block; }
+[data-theme='dark'] .logo-dark-mode { display: none; }
