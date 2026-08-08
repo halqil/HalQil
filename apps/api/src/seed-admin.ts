@@ -4,13 +4,15 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const hash = await bcrypt.hash('Admin1234!', 10);
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@halqil.uz';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin1234!';
+  const hash = await bcrypt.hash(adminPassword, 10);
   const user = await prisma.user.upsert({
-    where: { email: 'admin@halqil.uz' },
+    where: { email: adminEmail },
     update: { role: 'SUPER_ADMIN', password: hash, name: 'Admin' },
     create: {
       name: 'Admin',
-      email: 'admin@halqil.uz',
+      email: adminEmail,
       password: hash,
       role: 'SUPER_ADMIN',
       walletId: '09876543210987654321',

@@ -3,24 +3,56 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { env } from './config/env';
 
 dotenv.config();
 
 const app: Express = express();
-const port = process.env.PORT || 5000;
+const port = env.PORT;
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: env.CLIENT_ORIGIN,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']
   },
 });
 
-app.use(cors());
+app.use(helmet());
+app.use(helmet.crossOriginResourcePolicy({ policy: 'cross-origin' })); // Allow images to be served to frontend
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // limit each IP to 300 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
+
+app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
 app.use(express.json());
 
 // Serve static files
 import path from 'path';
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, env.UPLOAD_DIR)));
+
+// Liveness & Readiness checks
+import { PrismaClient } from '@prisma/client';
+const prismaHealth = new PrismaClient();
+
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date() });
+});
+
+app.get('/ready', async (req: Request, res: Response) => {
+  try {
+    await prismaHealth.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: 'ok', database: 'connected' });
+  } catch (error) {
+    res.status(503).json({ status: 'error', database: 'disconnected' });
+  }
+});
 
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
@@ -203,105 +235,22 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Setup simple cron for Schedule checking (every 5 minutes)
-// OFFLINE ni cron orqali o'rnatmaymiz — bu faqat socket disconnect orqali boshqariladi
-setInterval(async () => {
-  try {
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0-6
-    const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-    const activeSchedules = await prisma.providerSchedule.findMany({
-      where: {
-        isActive: true,
-        dayOfWeek: dayOfWeek,
-        openTime: { lte: currentTimeStr },
-        closeTime: { gte: currentTimeStr }
-      }
-    });
-
-    const activeProviderIds = activeSchedules.map(s => s.providerId);
-
-    // Faqat: active schedule bo'lgan provayderlarni AVAILABLE ga o'tkazamiz
-    // (agar ular hozirda BUSY bo'lmasa)
-    if (activeProviderIds.length > 0) {
-      await prisma.providerProfile.updateMany({
-        where: { id: { in: activeProviderIds }, availabilityStatus: 'OFFLINE' },
-        data: { availabilityStatus: 'AVAILABLE' }
-      });
-    }
-    // OFFLINE ni bu yerda o'rnatmaymiz — faqat isOnline socket orqali boshqariladi
-
-  } catch (error) {
-    console.error('Schedule check error', error);
+// Cron jobs (to be called by Render Cron or external ping)
+import { runCronJobs } from './workers/cron';
+app.post('/cron/run', async (req: Request, res: Response) => {
+  // Simple protection for cron endpoint
+  const authHeader = req.headers.authorization;
+  if (authHeader !== `Bearer ${env.JWT_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
-}, 5 * 60 * 1000);
-
-// ─── Auto-complete: 24 soat o'tgan AWAITING_CONFIRMATION ─────────────────────
-setInterval(async () => {
+  
   try {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const pending = await prisma.order.findMany({
-      where: { status: 'AWAITING_CONFIRMATION', awaitingConfirmAt: { lte: cutoff } }
-    });
-
-    for (const order of pending) {
-      const isSuccess = order.finishType === 'SUCCESSFUL';
-      const newStatus = isSuccess ? 'COMPLETED' : 'FAILED';
-
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { status: newStatus, autoCompleted: true }
-      });
-
-      const provider = await prisma.providerProfile.findUnique({ where: { id: order.providerId } });
-
-      if (isSuccess) {
-        if (provider) {
-          await prisma.providerProfile.update({
-            where: { id: order.providerId },
-            data: { successfulOrders: provider.successfulOrders + 1 }
-          });
-          const total = provider.successfulOrders + 1 + provider.failedOrders;
-          const reliability = total > 0 ? Math.round(((provider.successfulOrders + 1) / total) * 100) : 100;
-          await prisma.user.update({ where: { id: provider.userId }, data: { reliability } });
-          await prisma.notification.create({
-            data: {
-              userId: provider.userId,
-              title: 'Xizmat avtomatik tasdiqlandi',
-              message: 'Mijoz 24 soat ichida javob bermadi. Xizmat avtomatik COMPLETED qilindi.',
-              link: `/orders/${order.id}`
-            }
-          });
-        }
-        await prisma.notification.create({
-          data: {
-            userId: order.userId,
-            title: 'Buyurtma avtomatik yakunlandi',
-            message: 'Siz 24 soat ichida tasdiqlamagansiz. Buyurtma avtomatik yakunlandi.',
-            link: `/orders/${order.id}`
-          }
-        });
-      } else {
-        // UNSUCCESSFUL auto-complete: faqat MY_FAULT bo'lsa provider zarari
-        if (order.unsuccessCategory === 'MY_FAULT' && provider) {
-          const newFailed = provider.failedOrders + 1;
-          await prisma.providerProfile.update({ where: { id: order.providerId }, data: { failedOrders: newFailed } });
-          const total = provider.successfulOrders + newFailed;
-          const reliability = total > 0 ? Math.round((provider.successfulOrders / total) * 100) : 100;
-          await prisma.user.update({ where: { id: provider.userId }, data: { reliability } });
-        }
-        if (provider) {
-          await prisma.notification.create({
-            data: { userId: provider.userId, title: 'Buyurtma avtomatik FAILED qilindi', message: 'Mijoz 24 soat javob bermadi.', link: `/orders/${order.id}` }
-          });
-        }
-      }
-    }
+    const result = await runCronJobs();
+    res.status(200).json(result);
   } catch (error) {
-    console.error('Auto-complete cron error:', error);
+    res.status(500).json({ error: 'Internal cron error' });
   }
-}, 5 * 60 * 1000);
+});
 
 
 httpServer.listen(port, () => {

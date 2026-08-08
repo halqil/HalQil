@@ -17,3 +17,6 @@ yarn-error.log*
 # Monorepo
 .turbo/
 build/
+
+# API Uploads
+apps/api/uploads/

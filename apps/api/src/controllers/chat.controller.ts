@@ -204,7 +204,7 @@ export const uploadChatImage = async (req: Request, res: Response, next: NextFun
     res.json({
       success: true,
       data: {
-        url: `/uploads/${req.file.filename}`
+        url: req.file.path.startsWith('http') ? req.file.path : `/uploads/${req.file.filename}`
       }
     });
   } catch (error) {

@@ -504,8 +504,9 @@ export const addPortfolioImage = async (req: Request, res: Response, next: NextF
     if (!file) return res.status(400).json({ success: false, error: 'Rasm yuklanmadi', code: 'NO_FILE' });
     const profile = await prisma.providerProfile.findUnique({ where: { userId } });
     if (!profile) return res.status(404).json({ success: false, error: 'Profil topilmadi', code: 'NOT_FOUND' });
+    const imageUrl = file.path.startsWith('http') ? file.path : `/uploads/${file.filename}`;
     const image = await prisma.portfolioImage.create({
-      data: { providerId: profile.id, imageUrl: `/uploads/${file.filename}`, caption }
+      data: { providerId: profile.id, imageUrl, caption }
     });
     res.status(201).json({ success: true, data: image });
   } catch (error) {

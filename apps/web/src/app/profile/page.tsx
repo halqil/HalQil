@@ -342,7 +342,7 @@ export default function Profile() {
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {providerProfile.portfolio.map((img: Record<string, any>) => (
                   <div key={img.id} className="aspect-square rounded-xl overflow-hidden" style={{ backgroundColor: "var(--skeleton)" }}>
-                    <img src={`http://localhost:5000${img.imageUrl}`} alt="Portfolio" className="w-full h-full object-cover" />
+                    <img src={img.imageUrl.startsWith('http') ? img.imageUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${img.imageUrl}`} alt="Portfolio" className="w-full h-full object-cover" />
                   </div>
                 ))}
               </div>

@@ -141,16 +141,16 @@ export const updateAvatar = async (req: Request, res: Response, next: NextFuncti
     const file = req.file;
     if (!file) return res.status(400).json({ success: false, error: 'Rasm yuklanmadi' });
 
-    // Eski avatarni o'chirish
+    // Eski avatarni o'chirish (faqat lokal bo'lsa)
     const oldUser = await prisma.user.findUnique({ where: { id: userId }, select: { avatar: true } });
-    if (oldUser?.avatar) {
+    if (oldUser?.avatar && !oldUser.avatar.startsWith('http')) {
       const oldFilePath = path.join(__dirname, '../../', oldUser.avatar);
       if (fs.existsSync(oldFilePath)) {
         try { fs.unlinkSync(oldFilePath); } catch { /* silent */ }
       }
     }
 
-    const avatarUrl = `/uploads/avatars/${file.filename}`;
+    const avatarUrl = file.path.startsWith('http') ? file.path : `/uploads/avatars/${file.filename}`;
 
     const user = await prisma.user.update({
       where: { id: userId },
